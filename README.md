@@ -92,5 +92,4 @@ Dieses Projekt ist ein Beta-Release von [NKAutomations](https://haus-bus.de) und
 ## Kontakt
 
 Für Fragen oder Feedback:
-- Web: [haus-bus.de](https://haus-bus.de)
 - GitHub Issues nutzen oder per E-Mail an die Projektbetreuer
