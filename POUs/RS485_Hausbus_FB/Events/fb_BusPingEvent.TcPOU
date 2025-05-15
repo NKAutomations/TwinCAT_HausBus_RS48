@@ -1,0 +1,99 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="fb_BusPingEvent" Id="{b07ed474-f0db-45c9-bf2c-2641b67dcd51}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK fb_BusPingEvent
+VAR_INPUT
+	 I_sID         			:STRING(10);     // Geräte-ID (z.B. '12345')
+	 I_sReceivedString		:STRING(255);	
+	 I_iInstID				:INT := 17;						(* Instanz ID *)
+	 I_bTasterMode			:BOOL;
+	 I_bReset				:BOOL;
+END_VAR
+VAR_OUTPUT
+	Q_bOut					:BOOL;
+END_VAR
+VAR
+	findString0				:STRING ;
+	findString1				:STRING ;
+	findString2				:STRING ;
+	findString3				:STRING ;
+	findString4				:STRING ;
+	
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+findString0 := CONCAT(I_sID,'.');
+findString0 := CONCAT(findString0,'BTN');
+findString0 := CONCAT(findString0,'.');
+findString0 := CONCAT(findString0,INT_TO_STRING(I_iInstID));
+findString0 := CONCAT(findString0,'.');
+findString0 := CONCAT(findString0,'rSTATUS');
+
+(* Wenn ein Taster gedrückt wird *)
+findString1 := CONCAT(I_sID,'.');
+findString1 := CONCAT(findString1,'BTN');
+findString1 := CONCAT(findString1,'.');
+findString1 := CONCAT(findString1,INT_TO_STRING(I_iInstID));
+findString1 := CONCAT(findString1,'.');
+findString1 := CONCAT(findString1,'STATUS');
+
+(* Wenn Ein Temperatur Event Kommt *)
+findString2 := CONCAT(I_sID,'.');
+findString2 := CONCAT(findString2,'TEMP.1.STATUS');
+(* Wenn Ein Feuchtigkeit Event Kommt *)
+findString3 := CONCAT(I_sID,'.');
+findString3 := CONCAT(findString3,'RHD.1.STATUS');
+(* Wenn Ein Helligkeit Event Kommt *)
+findString4 := CONCAT(I_sID,'.');
+findString4 := CONCAT(findString4,'BRS.1.STATUS');
+
+IF I_bReset
+THEN
+	Q_bOut := FALSE;
+ELSE
+	IF FIND(I_sReceivedString,findString0) >0 
+		OR (FIND(I_sReceivedString,findString1) >0 
+		AND I_bTasterMode)
+		OR (FIND(I_sReceivedString,findString2) >0 
+		AND I_bTasterMode)
+		OR (FIND(I_sReceivedString,findString3) >0 
+		AND I_bTasterMode)
+		OR (FIND(I_sReceivedString,findString4) >0 
+		AND I_bTasterMode)
+		
+	THEN
+		Q_bOut := TRUE;
+	ELSE
+		Q_bOut := FALSE;
+	END_IF
+END_IF
+]]></ST>
+    </Implementation>
+    <LineIds Name="fb_BusPingEvent">
+      <LineId Id="125" Count="6" />
+      <LineId Id="207" Count="0" />
+      <LineId Id="196" Count="5" />
+      <LineId Id="171" Count="0" />
+      <LineId Id="208" Count="0" />
+      <LineId Id="202" Count="0" />
+      <LineId Id="222" Count="1" />
+      <LineId Id="228" Count="1" />
+      <LineId Id="227" Count="0" />
+      <LineId Id="231" Count="1" />
+      <LineId Id="230" Count="0" />
+      <LineId Id="233" Count="0" />
+      <LineId Id="86" Count="0" />
+      <LineId Id="172" Count="0" />
+      <LineId Id="174" Count="1" />
+      <LineId Id="177" Count="0" />
+      <LineId Id="204" Count="0" />
+      <LineId Id="206" Count="0" />
+      <LineId Id="215" Count="6" />
+      <LineId Id="178" Count="3" />
+      <LineId Id="176" Count="0" />
+      <LineId Id="173" Count="0" />
+      <LineId Id="139" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <Task Name="PlcTask" Id="{91eaebf6-dbd1-4480-ae2c-0a1912b77017}">
+    <!--CycleTime in micro seconds.-->
+    <CycleTime>1000</CycleTime>
+    <Priority>20</Priority>
+    <PouCall>
+      <Name>RS485_COM_PRG</Name>
+    </PouCall>
+    <TaskFBGuid>{17f984c7-81d5-4ab4-bf23-236bf92053b2}</TaskFBGuid>
+    <Fb_init>{18e0eda0-a8bc-471c-a540-3f9564e3e421}</Fb_init>
+    <Fb_exit>{96416434-4967-479c-ae1c-f6a00d844484}</Fb_exit>
+    <CycleUpdate>{a9d984ee-c064-48db-8668-86fbc99fed2a}</CycleUpdate>
+    <PostCycleUpdate>{113b13b6-ef5d-4806-83ad-6cea33910e33}</PostCycleUpdate>
+  </Task>
+</TcPlcObject>

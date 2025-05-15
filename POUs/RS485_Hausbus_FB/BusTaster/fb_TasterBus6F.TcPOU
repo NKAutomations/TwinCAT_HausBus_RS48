@@ -1,0 +1,1655 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="fb_TasterBus6F" Id="{70e73769-1aa0-4d74-979d-b7360a0709e4}" SpecialFunc="None">
+    <Declaration><![CDATA[(*======================================================================================================================================*)
+(*FB_TasterBusSimple:	Einfache RS485 Kommunikation für Haus-bus.de Komponenten zum testen 	
+						Achtung: Bei dem 6 Fach Taster ist zu Beachten, dass es nur 4 Externe EA/s gibt also 4 LEDs und 4 Taster *)
+(*
+Date          	| Version    	| created under        	| Author          	| Remark *)
+(*====================================================================================================================================================*)
+(*29/04/2025   	| 1.00      		| TC3		  		| N.Kersting       | first release *)
+(*02/05/2025   	| 1.01      		| TC3		  		| N.Kersting       | Events für die Buttons werden erfolgreich verarbeitet *)
+(*02/05/2025   	| 1.02      		| TC3		  		| N.Kersting       | Events für Temp, Helligkeit, Fuehctigkeit erfolgreich Implementier *)
+(*02/05/2025   	| 1.03      		| TC3		  		| N.Kersting       | Set Schrittkette für Reset und LED Helligkeit erfolgreich Implementier*)
+(*02/05/2025   	| 1.04      		| TC3		  		| N.Kersting       | In und Out Strukturen Implementiert und Startup nach Reset *)
+(*02/05/2025   	| 1.05      		| TC3		  		| N.Kersting       | Pingabgfrage*)
+(*02/05/2025   	| 1.06      		| TC3		  		| N.Kersting       | Reset Startup Implementiert*)
+(*03/05/2025   	| 1.07      		| TC3		  		| N.Kersting       | Ping wird nun bei PLC Reset auch gestaret und Execute wird richtig verwendet*)
+(*04/05/2025   	| 1.08      		| TC3		  		| N.Kersting       | Hintergrundbeleuchtung und Zähler für die Tatser Implementiert *)
+(*04/05/2025   	| 1.09      		| TC3		  		| N.Kersting       | Neuen Baustein zum Einheitlichen versenden von Telegrammen Implementiert *)
+(*05/05/2025   	| 2.00      		| TC3		  		| N.Kersting       | Komplett neuen Baustein, mit Externer Receive Auswertung und neuem Ping Baustein *)
+(*06/05/2025   	| 2.01      		| TC3		  		| N.Kersting       | Externe LEDs Implementiert *)
+(*07/05/2025   	| 2.02      		| TC3		  		| N.Kersting       | Im Startup wird nun auf die Device ID geachtet *)
+(*08/05/2025   	| 2.03      		| TC3		  		| N.Kersting       | Externe LEDs sind nun Umschaltbar/ LEDs oder normaler Ausgang (Betriefft die Hintergrundbeleuchtung) -> Weniger Busauslastung *)
+(*09/05/2025   	| 2.04      		| TC3		  		| N.Kersting       | Ping Versuche Implementiert mit Globalen Parametern *)
+(*09/05/2025   	| 2.05      		| TC3		  		| N.Kersting       | Ping für Taster nun Auch automatisch durch Empfang von sämtlichen Telegrammen*)
+(*09/05/2025   	| 2.06      		| TC3		  		| N.Kersting       | Bugfix im Startup Angepasst! nur noch Hintergrundbeleuchtung setzen! *)
+(*10/05/2025   	| 3.00      		| TC3		  		| N.Kersting       | Umstellung auf Externe FiFo Sendebaustein *)
+(*13/05/2025   	| 3.01      		| TC3		  		| N.Kersting       | Viele Bugs gefixt, bei Änderung der Ausgängen wird nun eine Anforderung gesetzt  *)
+(*13/05/2025   	| 3.02      		| TC3		  		| N.Kersting       | Test für Github *)
+(*====================================================================================================================================================*)
+FUNCTION_BLOCK fb_TasterBus6F
+VAR_INPUT
+	I_FifoID			:INT;
+	I_bPingStart		:BOOL;						(* Ping Done vom Vorheriegen*)
+	I_stInput			:ST_BusTaster6F_Input;
+	I_StringReceived	:STRING(255);
+END_VAR
+VAR_OUTPUT
+	Q_sFiFoSend			:STRING(255);
+   	Q_stOutput			:ST_BusTaster6F_Output;
+	Q_stCnt				:ST_BusTaster6F_Cnt;
+END_VAR
+VAR
+(*----------------------------------------------*)
+(* Interne Parameter*)
+(*----------------------------------------------*)		
+	bSetExecute			:BOOL := TRUE;				(* Aktiviert die Schrittketten, welche Telegramme versenden *)
+	bCheckPing			:BOOL := TRUE;				(* Ping Checken Schrittkette Aktivieren *)
+	sStartZeichen		:BYTE := 16#FD;				(* Startzeichen Präfix *)
+	sEndZeichen			:BYTE := 16#FE;				(* Endzeichen Suffix *)
+	iAnzResetSend		:INT := 2;					(* Anzahl der Sendeversuche bei Reset *)
+	tPingTimer			:TIME:= T#5S;				(* Zeit, bis wiederholend der Ping versendet wird *)
+	tReceiveTimeout		:TIME:= T#2S;				(* Zeit, bis die Event Schrittkette für das Empfangen Automatisch neu Startet*)
+	tStartupLEDOn		:TIME:= T#4S;				(* Zeit, wie Lange die LEDS beim Startup kurz eingeschaltet werden *)
+	tResetTimeout		:TIME:= T#8S;				(* Zeit, bis bei einem Reset es zu einem Fehler kommt, wenn kein Ping empfangen wird *)
+	tResetReboot		:TIME:= T#10S;				(* Zeit, die nach einem Reset Abgewaretet wird damit das Gerät neustarten kann*)
+	tResetStartup		:TIME:= T#5S;				(* Zeit, die nach einem Reset Abgewaretet wird bis ein Startup ausgeführt wird nach dem erhalt des Pings vom Gerät*)
+	tStartupAfterReset	:TIME := T#5S;				(* Zeit, wann das Startup Zurückgesetzt wird, wenn der Ping verloren wird *)
+(*----------------------------------------------*)
+(* Strings *)
+(*----------------------------------------------*)			
+	sSendString			:STRING(255);
+	sFiFoSend			:STRING(255);
+	sReceived			:STRING(255);
+	sLastSendString		:STRING(255);
+	sStateReset			:STRING;
+(*----------------------------------------------*)
+(* Funktionsbausteine *)
+(*----------------------------------------------*)
+	fbBusTasterEvent	:ARRAY[1..6] OF fb_BusTasterEvent;		(* Interne 6 Taster Abfragen *)
+	fbBusTasterEventExt	:ARRAY[1..6] OF fb_BusTasterEvent;		(* Externe 6 Eingänge Abfragen *)
+	fbBusTempEvent		:fb_BusTempEvent;
+	fbBusBrsEvent		:fb_BusBrsEvent;
+	fbBusRhdEvent		:fb_BusRhdEvent;
+	fbStringConvTB6F	:fb_StringConvTB6F;
+	fbRS485ComCheck		:fb_RS485ComCheck;
+(*----------------------------------------------*)
+(* Indexe *)
+(*----------------------------------------------*)	
+	iDeviceStartup		:INT :=0;	(* Startup Schrittkette *)
+	sDeviceStartup		:STRING;
+    iState     			:INT := 0;
+	iStepSet			:INT;
+	i,h,j,l,e			:INT;
+	idxLED				:INT;
+	idxBtn				:INT := 1;
+	
+	iDimmMem			:ARRAY[1..6] OF INT;
+	iDimmMemExt			:ARRAY[1..6] OF INT;
+	iDimmBGAnf			:INT;
+	iDimmAnf			:ARRAY[1..6] OF INT;
+	iDimmAnfExt			:ARRAY[1..6] OF INT;
+	
+	iDimmBgMem			:INT;
+	cntChangesDimm		:INT;
+	cntChangesDimmExt	:INT;
+	icntResetSend		:INT;
+	iMaxPingTry			:INT := 5;
+(*----------------------------------------------*)
+(* Timer/Trigger *)
+(*----------------------------------------------*)		
+	r_trigStartupAfterReset	:r_trig;
+	r_TrigReset				:r_trig;		
+	r_TrigCountBtn			:ARRAY[1..6] OF r_trig;
+	
+	tonStartupAfterReset	:ton;
+	tonReceiveTimeout		:ton;
+	tonResetTimeout			:ton;
+	tonResetDone			:ton;
+	tonStepStartup			:ton;
+(*----------------------------------------------*)
+(* Status *)
+(*----------------------------------------------*)			
+	bPingOK					:BOOL;
+	bErrorEvent				:BOOL;
+	bErrorPing				:BOOL;
+	bErrorSet				:BOOL;
+	bErrorReset				:BOOL;
+	bResetBusy				:BOOL;
+	bResetDone				:BOOL;
+	bResetAutoStart			:BOOL;
+	bStartupStart			:BOOL;
+	bStartupDone			:BOOL;	
+	bMemExt					:BOOL;
+	bStartUpCheckPing		:BOOL;
+	bActivateSend			:BOOL;
+	bReadyToPing			:BOOL;
+	bSendeAnforderung		:BOOL;
+	bSendeAnforderungExt	:BOOL;
+	bSendeAnforderungBG		:BOOL;
+	
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[(*============================================================================================*)
+(* Parameter *)
+tPingTimer :=		GVL_HausBus_Parameter.cTimePingTimeTaster;
+tReceiveTimeout :=	GVL_HausBus_Parameter.cTimeReceiveTimeoutTaster;
+bCheckPing :=		GVL_HausBus_Parameter.bUseTasterPing;
+iMaxPingTry :=		GVL_HausBus_Parameter.cMaxPingTry;
+
+(*============================================================================================*)
+(* Startup Zurücksetzen Reset *)
+r_TrigReset(CLK := I_stInput.bReset);
+
+(* Startup Zurücksetzen bei Busverlust *)
+tonStartupAfterReset(
+	IN := NOT bPingOK
+			AND bCheckPing,
+	PT:= tStartupAfterReset);
+
+r_trigStartupAfterReset
+	(CLK := tonStartupAfterReset.Q);
+	
+IF NOT I_stInput.bExecute
+	OR r_TrigReset.Q
+	OR r_trigStartupAfterReset.Q
+THEN
+	iDeviceStartup := 0;
+END_IF
+
+(*============================================================================================*)
+(* Ping Dauerhaft Senden*)
+ac02_Ping();
+	
+(*============================================================================================*)
+(* Startup Schrittkette *)
+CASE iDeviceStartup OF
+(*============================================================================================*)
+0: 	sDeviceStartup := 'INIT';
+	bResetDone := FALSE;
+	bStartupDone := FALSE;
+	bStartupStart := FALSE;
+	bResetAutoStart := FALSE;
+	bStartUpCheckPing := FALSE;
+	bActivateSend := FALSE;
+	bReadyToPing := TRUE;
+	sFiFoSend := ''; 
+	iStepSet := 0;
+	
+	IF 	I_stInput.bExecute
+	THEN
+		iDeviceStartup := iDeviceStartup+1;
+	END_IF
+(*============================================================================================*)
+1: 	sDeviceStartup := 'Device ID Prüfen';
+	
+	IF  I_stInput.diID <> 0
+	THEN
+		iDeviceStartup := iDeviceStartup+1;
+	ELSE
+		sDeviceStartup := 'ERROR- Device ID Prüfen';
+	END_IF
+(*============================================================================================*)
+2: 	sDeviceStartup := 'Verbindung Prüfen';
+	bStartUpCheckPing := TRUE;
+	bActivateSend := TRUE;	(* Senden Aktivieren *)
+	
+	sDeviceStartup := CONCAT(sDeviceStartup,fbRS485ComCheck.Q_sState);
+	
+	IF fbRS485ComCheck.Q_bComOk
+		OR NOT bCheckPing
+	THEN
+		iDeviceStartup := iDeviceStartup+1;
+	END_IF
+
+(*============================================================================================*)
+3: 	sDeviceStartup := 'Reset Ausführen';	
+	bActivateSend := TRUE;	(* Senden Aktivieren *)
+	
+	(*	RESET Device *)
+	ac01_SetReset();
+	bResetAutoStart := TRUE;
+	
+	sDeviceStartup :=	CONCAT(sDeviceStartup,sStateReset);
+	
+	IF bResetDone
+	THEN
+		iStepSet := 0;
+		iDeviceStartup := iDeviceStartup+1;
+	END_IF
+
+(*============================================================================================*)
+4: 	sDeviceStartup := 'Startup Ausführen';
+		
+	(* LED Setzen *)
+	ac01_SetLED();
+	
+	bStartupStart := TRUE;
+	
+	IF bStartupDone 
+	THEN
+		bStartupStart := FALSE;
+		iDeviceStartup := 999;
+	END_IF
+
+(*============================================================================================*)
+999: 
+	(*bReadyToPing := NOT fbRS485SendCmd.Q_bBusy;*)
+	
+	(* LED Setzen *)
+	ac01_SetLED();
+	
+	(* Events Auslesen *)
+	ac00_Event();
+	
+	(* Zähler *)
+	ac10_Counter();
+	
+	sDeviceStartup := 'Startup Ausgeführt- Gerät im OP';
+	
+END_CASE
+
+(*============================================================================================*)
+(* Sendebaustein *)
+IF bActivateSend
+THEN
+	IF fbRS485ComCheck.Q_sSend <>''
+	THEN
+		Q_sFiFoSend :=	fbRS485ComCheck.Q_sSend;
+	ELSE
+		Q_sFiFoSend :=	sFiFoSend;
+	END_IF
+END_IF
+
+(*============================================================================================*)	
+(* Zähler *)
+ac10_Counter();
+	
+(*============================================================================================*)
+(* Outputs *)
+Q_stOutput.bCOM :=		bPingOK;
+
+Q_stOutput.bError := 	bErrorEvent
+						OR bErrorPing
+						OR bErrorSet
+						OR (NOT bPingOK
+						AND bCheckPing);
+						
+Q_stOutput.bStartupDone	:=	bStartupDone;
+
+Q_stOutput.sState :=	CONCAT(I_stInput.sName,'| ');
+Q_stOutput.sState :=	CONCAT(Q_stOutput.sState, sDeviceStartup);]]></ST>
+    </Implementation>
+    <Action Name="ac00_Event" Id="{83bfb0bb-b0ff-4e80-b6d4-0258e14b0c4b}">
+      <Implementation>
+        <ST><![CDATA[(*============================================================================================*)
+(*	EVENT Schrittkette *)
+(*============================================================================================*)
+sReceived := I_StringReceived;
+	
+FOR i := 1 TO 6 BY 1 DO 
+	fbBusTasterEvent[i](
+		I_sID:= 				DINT_TO_STRING(I_stInput.diID), 
+		I_sInstID:= 			INT_TO_STRING(i+16), 
+		I_sReceivedString:= 	sReceived, 
+		Q_bOut=> 				Q_stOutput.bButtons[i]);
+	
+	fbBusTasterEventExt[i](
+		I_sID:= 				DINT_TO_STRING(I_stInput.diID), 
+		I_sInstID:= 			INT_TO_STRING(i+32), 
+		I_sReceivedString:= 	sReceived, 
+		Q_bOut=> 				Q_stOutput.bButtonsExt[i]);
+		
+	fbBusTempEvent(
+		I_sID:= 				DINT_TO_STRING(I_stInput.diID), 
+		I_sInstID:= 			'1', 
+		I_sReceivedString:= 	sReceived, 
+		Q_lrTemp=> 				Q_stOutput.lrTemp);
+		
+	fbBusBrsEvent(
+		I_sID:= 				DINT_TO_STRING(I_stInput.diID), 
+		I_sInstID:= 			'1', 
+		I_sReceivedString:= 	sReceived, 
+		Q_lrBrs=> 				Q_stOutput.lrBrs);
+		
+	fbBusRhdEvent(
+		I_sID:= 				DINT_TO_STRING(I_stInput.diID), 
+		I_sInstID:= 			'1', 
+		I_sReceivedString:= 	sReceived, 
+		Q_lrRhd=> 				Q_stOutput.lrRhd);
+END_FOR]]></ST>
+      </Implementation>
+    </Action>
+    <Action Name="ac01_SetLED" Id="{b7fb8336-04b4-4110-9f58-6fd9b85f277c}">
+      <Implementation>
+        <ST><![CDATA[(*============================================================================================*)
+(*	LED Helligkeit Setzen/ Startup Schrittkette *)
+(*============================================================================================*)
+
+(* Einfaches Setzen der LED Helligkeiten (0-100 Prozent *)
+(* Neu, es werden alle LEDs zu einem String zusammengefügt und Gleichzeitig gesetzt *)
+tonStepStartup(
+	PT:= tStartupLEDOn);
+	
+cntchangesDimm := 0;
+cntChangesDimmExt :=0;
+	
+FOR l := 1 TO 6 BY 1 DO
+	IF iDimmMem[l] <> I_stInput.iLED[l]
+	THEN
+		cntChangesDimm := cntChangesDimm +1;
+	END_IF
+
+	IF  iDimmMemExt[l]<> I_stInput.iLEDExt[l]
+	THEN
+		cntChangesDimmExt := cntChangesDimmExt +1;
+	END_IF
+END_FOR
+
+CASE iStepSet OF
+(*============================================================================================*)
+0:	(* INIT und warten auf Change *)				
+	tonStepStartup.IN := FALSE;
+	sFiFoSend := ''; 
+	
+	(* Änderungs- Anforderungen Prüfen*)
+	FOR e := 1 TO 6 BY 1 DO
+		IF cntChangesDimm<>0
+		THEN
+			(* Helligkeitanforderung Interne LEDs speichern *)
+			bSendeAnforderung := TRUE;
+			iDimmAnf[e] 	:= I_stInput.iLED[e];
+		END_IF
+		
+		IF cntChangesDimmExt <> 0
+		THEN
+			(* Helligkeitanforderung Externe LEDs speichern *)
+			bSendeAnforderungExt := TRUE;
+			iDimmAnfExt[e] 	:= I_stInput.iLEDExt[e];
+		END_IF
+		
+		IF I_stInput.iLEDBg <>iDimmBgMem
+		THEN
+			(* Helligkeitsanforderung Hintergrundbeleuchtung *)
+			bSendeAnforderungBG := TRUE;
+			iDimmBGAnf		:= I_stInput.iLEDBg;
+		END_IF
+	END_FOR
+	
+	(* Reagieren auf Anforderungen *)
+	IF ((bSendeAnforderung
+		OR bSendeAnforderungExt
+		OR bSendeAnforderungBG)
+		AND bSetExecute)
+		AND fbRS485ComCheck.Q_sSend =''
+		AND NOT bStartupStart
+	THEN
+		(* Helligkeitsvorgaben speichern in Mem Arrays *)
+		FOR h := 1 TO 6 BY 1 DO
+			iDimmMem[h] := I_stInput.iLED[h];
+			iDimmMemExt[h] := I_stInput.iLEDExt[h];
+			iDimmBgMem := I_stInput.iLEDBg;
+		END_FOR
+		
+		iStepSet := 10;
+	ELSIF
+		bStartupStart
+	THEN
+		iStepSet := 100;	(* Startup *)
+	END_IF
+	
+(*============================================================================================*)
+10:	(* Prüfen welche Anforderung ausgeführt werden soll *)	
+	IF	bSendeAnforderungBG
+		AND NOT bSendeAnforderung
+		AND NOT bSendeAnforderungExt 
+	THEN
+		iStepSet := 22;(* Direkt nur die Hintergrund Helligkeit setzen *)
+	ELSE
+		(* Nur Interne LEDs Schreiben *)
+		IF bSendeAnforderung
+			AND NOT bSendeAnforderungExt
+			AND NOT bSendeAnforderungBG
+		THEN
+			fbStringConvTB6F(
+				I_bSetBackground :=	FALSE,
+				I_bReset :=			FALSE,
+				I_bExtLED :=		FALSE,
+				I_bHasExtLED :=		I_stInput.bExtOutLED,
+				I_diID:= 			I_stInput.diID, 
+				I_iLED:= 			iDimmAnf, 
+				I_iLEDExt:=			iDimmAnfExt,
+				I_iLEDBg:= 			iDimmBGAnf,		 
+				I_sStartZeichen:= 	sStartZeichen, 
+				I_sEndZeichen:= 	sEndZeichen, 
+				Q_sConvString=> 	sSendString);
+				
+			(* Senden an FiFo*)
+			IF GVL_RS485FiFoSend.bSendDoneFiFo[I_FifoID]
+			THEN
+				sFiFoSend :=	sSendString;
+			END_IF
+			IF NOT GVL_RS485FiFoSend.bSendDoneFiFo[I_FifoID]
+			THEN
+				bSendeAnforderung := FALSE;
+				sLastSendString :=	sFiFoSend;
+				iStepSet := 20;
+			END_IF
+		ELSIF
+			(* Nur Externe LEDs Schreiben *)	
+			bSendeAnforderungExt
+			AND NOT bSendeAnforderung
+			AND NOT bSendeAnforderungBG
+		THEN
+			fbStringConvTB6F(
+				I_bSetBackground :=	FALSE,
+				I_bReset :=			FALSE,
+				I_bExtLED :=		TRUE,
+				I_bHasExtLED :=		I_stInput.bExtOutLED,
+				I_diID:= 			I_stInput.diID, 
+				I_iLED:= 			iDimmAnf, 
+				I_iLEDExt:=			iDimmAnfExt,
+				I_iLEDBg:= 			iDimmBGAnf,				 
+				I_sStartZeichen:= 	sStartZeichen, 
+				I_sEndZeichen:= 	sEndZeichen, 
+				Q_sConvString=> 	sSendString);
+			
+			(* Senden an FiFo*)
+			IF GVL_RS485FiFoSend.bSendDoneFiFo[I_FifoID]
+			THEN
+				sFiFoSend :=	sSendString;
+			END_IF
+			IF NOT GVL_RS485FiFoSend.bSendDoneFiFo[I_FifoID]
+			THEN
+				bSendeAnforderungExt := FALSE;
+				sLastSendString :=	sFiFoSend;
+				iStepSet := 20;
+			END_IF
+		ELSE
+			(* Externe und Interne LEDs Schreiben *)
+			bMemExt := TRUE; (* Speichern, damit anschließend noch die Externen LEDs gesetzt werden *)
+			
+			fbStringConvTB6F(
+				I_bSetBackground :=	FALSE,
+				I_bReset :=			FALSE,
+				I_bExtLED :=		FALSE,
+				I_bHasExtLED :=		I_stInput.bExtOutLED,
+				I_diID:= 			I_stInput.diID, 
+				I_iLED:= 			iDimmAnf, 
+				I_iLEDExt:=			iDimmAnfExt,
+				I_iLEDBg:= 			iDimmBGAnf,			 
+				I_sStartZeichen:= 	sStartZeichen, 
+				I_sEndZeichen:= 	sEndZeichen, 
+				Q_sConvString=> 	sSendString);
+			
+			(* Senden an FiFo*)
+			IF GVL_RS485FiFoSend.bSendDoneFiFo[I_FifoID]
+			THEN
+				sFiFoSend :=	sSendString;
+			END_IF
+			IF NOT GVL_RS485FiFoSend.bSendDoneFiFo[I_FifoID]
+			THEN
+				bSendeAnforderung := FALSE;
+				bSendeAnforderungExt := FALSE;
+				sLastSendString :=	sFiFoSend;
+				iStepSet := 20;
+			END_IF
+		END_IF
+	END_IF
+(*============================================================================================*)	
+20:	(* Warten bis nicht Busy *)	
+	
+	IF GVL_RS485FiFoSend.bSendDoneFiFo[I_FifoID]
+	THEN
+		sFiFoSend := ''; 
+		IF NOT bMemExt
+		THEN
+			IF bSendeAnforderungBG
+			THEN
+				iStepSet := 22;
+			ELSE
+				iStepSet := 0;
+			END_IF
+		ELSE
+			iStepSet :=	21;
+		END_IF
+	END_IF
+	
+(*============================================================================================*)	
+21:	(* Externe LEDs Senden *)	
+	bMemExt := FALSE;
+	bSendeAnforderungExt := FALSE;
+	
+	fbStringConvTB6F(
+		I_bSetBackground :=	FALSE,
+		I_bReset :=			FALSE,
+		I_bExtLED :=		TRUE,
+		I_bHasExtLED :=		I_stInput.bExtOutLED,
+		I_diID:= 			I_stInput.diID, 
+		I_iLED:= 			iDimmAnf, 
+		I_iLEDExt:=			iDimmAnfExt,
+		I_iLEDBg:= 			iDimmBGAnf,				 
+		I_sStartZeichen:= 	sStartZeichen, 
+		I_sEndZeichen:= 	sEndZeichen, 
+		Q_sConvString=> 	sSendString);
+		
+	(* Senden an FiFo*)
+	IF GVL_RS485FiFoSend.bSendDoneFiFo[I_FifoID]
+	THEN
+		sFiFoSend :=	sSendString;
+	END_IF
+	IF NOT GVL_RS485FiFoSend.bSendDoneFiFo[I_FifoID]
+	THEN
+		sLastSendString :=	sFiFoSend;
+		iStepSet := 20;
+	END_IF
+	
+(*============================================================================================*)	
+22:	(* Hintergrundbeleuchtung senden *)		
+	bSendeAnforderungBG := FALSE;
+	
+	fbStringConvTB6F(
+		I_bSetBackground :=	TRUE,
+		I_bReset :=			FALSE,
+		I_bExtLED :=		FALSE,
+		I_bHasExtLED :=		I_stInput.bExtOutLED,
+		I_diID:= 			I_stInput.diID, 
+		I_iLED:= 			iDimmAnf, 
+		I_iLEDExt:=			iDimmAnfExt,
+		I_iLEDBg:= 			iDimmBGAnf,			 
+		I_sStartZeichen:= 	sStartZeichen, 
+		I_sEndZeichen:= 	sEndZeichen, 
+		Q_sConvString=> 	sSendString);
+		
+	(* Senden an FiFo*)
+	IF GVL_RS485FiFoSend.bSendDoneFiFo[I_FifoID]
+	THEN
+		sFiFoSend :=	sSendString;
+	END_IF
+	IF NOT GVL_RS485FiFoSend.bSendDoneFiFo[I_FifoID]
+	THEN
+		sLastSendString :=	sFiFoSend;
+		iStepSet := 20;
+	END_IF
+
+(*============================================================================================*)	
+(* Startup LEDS einmal Einschalten *)
+100:	tonStepStartup.IN := TRUE;
+	
+	IF tonStepStartup.Q
+	THEN
+		iStepSet := 110;
+	END_IF
+	
+(*============================================================================================*)
+110:	(* String senden *)	
+	tonStepStartup.IN := FALSE;
+	
+	fbStringConvTB6F(
+		I_bSetBackground :=	TRUE,
+		I_bExtLED :=		FALSE,
+		I_bReset :=			FALSE,
+		I_bHasExtLED :=		I_stInput.bExtOutLED,
+		I_diID:= 			I_stInput.diID, 
+		I_iLEDBg:= 			100,		 
+		I_sStartZeichen:= 	sStartZeichen, 
+		I_sEndZeichen:= 	sEndZeichen, 
+		Q_sConvString=> 	sSendString);
+			
+	(* Senden an FiFo*)
+	IF GVL_RS485FiFoSend.bSendDoneFiFo[I_FifoID]
+	THEN
+		sFiFoSend :=	sSendString;
+	END_IF
+	IF NOT GVL_RS485FiFoSend.bSendDoneFiFo[I_FifoID]
+	THEN
+		
+		iStepSet := 111;
+	END_IF
+	
+(*============================================================================================*)	
+111:(* Warten bis nicht Busy *)	
+	IF GVL_RS485FiFoSend.bSendDoneFiFo[I_FifoID]
+	THEN
+		sFiFoSend := ''; 
+		tonStepStartup.IN := TRUE;
+		
+		IF tonStepStartup.Q
+		THEN
+			tonStepStartup.IN := FALSE;
+			iStepSet := 120;
+		END_IF
+	END_IF
+	
+(*============================================================================================*)
+120:	(* String senden *)	
+	fbStringConvTB6F(
+		I_bSetBackground :=	TRUE,
+		I_bExtLED :=		FALSE,
+		I_bReset :=			FALSE,
+		I_bHasExtLED :=		I_stInput.bExtOutLED,
+		I_diID:= 			I_stInput.diID, 
+		I_iLEDBg:= 			0,		 
+		I_sStartZeichen:= 	sStartZeichen, 
+		I_sEndZeichen:= 	sEndZeichen, 
+		Q_sConvString=> 	sSendString);
+			
+	(* Senden an FiFo*)
+	IF GVL_RS485FiFoSend.bSendDoneFiFo[I_FifoID]
+	THEN
+		sFiFoSend :=	sSendString;
+	END_IF
+	IF NOT GVL_RS485FiFoSend.bSendDoneFiFo[I_FifoID]
+	THEN
+		iStepSet := 130;
+	END_IF
+	
+(*============================================================================================*)	
+130:(* Warten bis nicht Busy *)	
+	IF GVL_RS485FiFoSend.bSendDoneFiFo[I_FifoID]
+	THEN
+		sFiFoSend := ''; 
+			
+		tonStepStartup.IN := TRUE;
+	
+		IF tonStepStartup.Q
+		THEN
+			bStartupDone := TRUE;
+			tonStepStartup.IN := FALSE;
+			bStartupStart := FALSE;
+			iStepSet := 10;	(* Anschließend noch einmal die Eingangs Helligkeit setzen *)
+		END_IF
+	END_IF	
+
+END_CASE
+
+(*bErrorSet := fbRS485SendCmd.Q_bError;*)]]></ST>
+      </Implementation>
+    </Action>
+    <Action Name="ac01_SetReset" Id="{f38df076-26cd-4c70-8fca-472d75326647}">
+      <Implementation>
+        <ST><![CDATA[(*============================================================================================*)
+(*	RESET Schrittkette *)
+(*============================================================================================*)
+tonResetTimeout(
+	PT := tResetTimeout);
+
+tonResetDone();
+
+(* Einfaches Setzen der LED Helligkeiten (0-100 Prozent *)
+CASE iStepSet OF
+(*============================================================================================*)
+0:	sStateReset := 'INIT';
+	
+	IF (bSetExecute
+		AND (I_stInput.bReset
+		OR bResetAutoStart))
+	THEN
+		sFiFoSend := ''; 
+		bStartupDone := FALSE;
+		bResetDone := FALSE;
+		tonResetTimeout.IN := FALSE;
+		tonResetDone.IN := FALSE;
+		icntResetSend := 0;
+		
+		(* Ausgänge alle auf 0 setzen *)
+		FOR h := 1 TO 6 BY 1 DO
+			fbBusTasterEvent[i](
+				I_sReceivedString :='');
+				
+			fbBusTasterEventExt[i](
+				I_sReceivedString :='');	
+				
+			iDimmMem[h] := 0;
+			Q_stOutput.bButtons[h] := FALSE;
+			Q_stOutput.lrTemp := 0;
+			Q_stOutput.lrBrs := 0;
+			Q_stOutput.lrRhd := 0;
+		END_FOR
+		
+		fbBusTempEvent(
+			I_sReceivedString :='',	
+			I_bReset := TRUE);
+			
+		fbBusBrsEvent(
+			I_sReceivedString :='',	
+			I_bReset := TRUE);
+			
+		fbBusRhdEvent(
+			I_sReceivedString :='',	
+			I_bReset := TRUE);
+		
+		bPingOK := FALSE;
+		
+		iStepSet := iStepSet +1;
+	END_IF
+
+(*============================================================================================*)	
+1:	sStateReset := 'Sende Reset Befehl';
+	bResetBusy := TRUE;
+	bErrorReset := FALSE;
+	
+	fbStringConvTB6F(
+		I_bReset :=			TRUE,
+		I_diID:= 			I_stInput.diID, 		 
+		I_sStartZeichen:= 	sStartZeichen, 
+		I_sEndZeichen:= 	sEndZeichen, 
+		Q_sConvString=> 	sSendString);
+
+	(* Senden an FiFo*)
+	IF GVL_RS485FiFoSend.bSendDoneFiFo[I_FifoID]
+	THEN
+		sFiFoSend :=	sSendString;
+	END_IF
+	IF NOT GVL_RS485FiFoSend.bSendDoneFiFo[I_FifoID]
+	THEN
+		iStepSet := iStepSet+1;
+	END_IF
+
+(*============================================================================================*)
+2:	sStateReset := 'Sende Reset Befehl';
+
+	IF GVL_RS485FiFoSend.bSendDoneFiFo[I_FifoID]
+	THEN
+		sFiFoSend := ''; 
+		fbStringConvTB6F(
+			I_bReset :=			FALSE);
+		iStepSet := 3;
+				
+	END_IF
+	
+(*============================================================================================*)	
+3:	sStateReset := 'Reset durchgeführt, Warte auf Ping';
+	tonResetDone.IN := TRUE;
+	tonResetDone.PT := tResetReboot;
+	
+	fbBusTempEvent(I_bReset := FALSE);
+	fbBusBrsEvent(I_bReset := FALSE);
+	fbBusRhdEvent(I_bReset := FALSE);
+	
+	iState := 0;
+	
+	IF tonResetDone.Q
+	THEN
+		tonResetDone.IN := FALSE;
+		iStepSet := 4;
+	END_IF
+	
+(*============================================================================================*)	
+4:	sStateReset := 'Warte auf Ping vom Gerät';	
+	tonResetTimeout.IN := TRUE;
+	
+	IF bPingOK 
+		OR NOT bCheckPing
+	THEN
+		bErrorReset := FALSE;
+		tonResetTimeout.IN := FALSE;
+		iStepSet := 5;
+	ELSIF
+		tonResetTimeout.Q
+	THEN
+		sStateReset := 'Ping Timeout, keine Kommunikation';
+		bErrorReset := TRUE;
+
+		IF I_stInput.bReset
+		THEN
+			bResetBusy := FALSE;
+			iStepSet := 0;
+		END_IF
+	END_IF
+
+(*============================================================================================*)
+5:	sStateReset := 'Startup Aktiv';
+	
+	tonResetDone.IN := NOT I_stInput.bReset;
+	tonResetDone.PT := tResetStartup;
+	sFiFoSend := ''; 
+	
+	IF tonResetDone.Q
+	THEN
+		fbStringConvTB6F(
+			I_bReset :=			FALSE);
+			
+		sStateReset := 'Ping erhalten, Reset Erfolgreich';
+		bResetAutoStart := FALSE;
+		bResetDone := TRUE;
+		bResetBusy := FALSE;
+		iState := 0;
+		iStepSet := 0;
+	END_IF
+END_CASE
+]]></ST>
+      </Implementation>
+    </Action>
+    <Action Name="ac02_Ping" Id="{e15ff938-0f92-4435-ad78-69e9510884f0}">
+      <Implementation>
+        <ST><![CDATA[(*============================================================================================*)
+(* 	Ping Bautsein, Checkt ob die Kommunikation vorhanden ist *)
+(*============================================================================================*)
+fbRS485ComCheck(
+	I_FifoID:=				I_FifoID,
+	I_bExecute:= 			bCheckPing
+							AND bStartUpCheckPing
+							(*AND bReadyToPing*), 
+	I_bStart :=				I_bPingStart,
+	I_bTasterMode:=			TRUE,
+	I_StringReceived:=		I_StringReceived,
+	I_tPingIntervall:= 		tPingTimer, 
+	I_tPingTimeout:= 		tReceiveTimeout, 
+	I_diID:= 				I_stInput.diID, 
+	I_sPingSymbol:= 		'.BTN.', 
+	I_iInstID:= 			17, 
+	I_sStartZeichen:= 		sStartZeichen, 
+	I_sEndZeichen:= 		sEndZeichen, 
+	I_iMaxPingTry :=		iMaxPingTry,	 
+	Q_bComOk=> 				bPingOK, 
+	Q_bError=> 				bErrorPing,
+	Q_bSendDone=>			(* *));
+	
+	]]></ST>
+      </Implementation>
+    </Action>
+    <Action Name="ac10_Counter" Id="{6a58da45-1209-4c68-8a58-7cca2b2db800}">
+      <Implementation>
+        <ST><![CDATA[(*============================================================================================*)
+(* 	Zähler *)
+(*============================================================================================*)
+FOR j := 1 TO 6 BY 1 DO 
+	r_TrigCountBtn[j](
+		CLK := Q_stOutput.bButtons[j]);
+		
+	IF r_TrigCountBtn[j].Q
+	THEN
+		Q_stCnt.dwCntButtons[j] := Q_stCnt.dwCntButtons[j]+1;
+	END_IF
+	
+END_FOR]]></ST>
+      </Implementation>
+    </Action>
+    <Action Name="ac99_Doku" Id="{4cbd1a4a-aeef-4ec8-a22d-709892c4662d}">
+      <Implementation>
+        <ST><![CDATA[(*======================================================================================================================================*)
+(*	DOKU	*)
+(*======================================================================================================================================*)
+(* Wichtiger Hinweis:
+		-Bei dem 6 Fach Taster ist zu Beachten, dass es nur 4 Externe EA/s gibt also 4 LEDs und 4 Taster, 
+		da der ESP 32 Nur 10Es und 10As besitzt.
+		- Die 4 Zusätzlichen Ausgänge werden von der Hintergrundbeleuchtung Ausgeschlossen und müssen über den Befehl: SET_MBR einzeln 
+			gesetzt werden! *)	
+	
+(* Verdrahtung:		
+	Verdrahtung füR: KL6041
+        +-------+
+        |       |
+        | TxD+ ----+
+        |         |----> RS485 A (zum Bus)
+        | RxD+ ----+
+        |         |
+        | TxD− ----+
+        |         |----> RS485 B (zum Bus)
+        | RxD− ----+
+        +-------+	*)
+		
+(*======================================================================================================================================*)
+(* Telegrammbeschreibung *)
+
+(*	Die XML Dateien der verschiedenen Module sind grundsätzlich immer gleich aufgebaut. 
+	Je Instanz der verschiedenen Sensoren und Aktoren werden die zu sendenden Befehle bzw. 
+	die zu empfangenen Events beschrieben. 
+	Alle Telegramme sind ASCII kodiert und sind umgeben mit dem binären Startzeichen 0xFD und dem binären Endezeichen 0xFE.
+
+	Grundaufbauer aller im Folgenden beschriebenen Telegramme:
+	
+	-Startzeichen immer 0xFD.
+	-Punkte dienen als Trennzeichen der verschiedenen Elemente
+	-Endezeichen immer 0xFE.
+	-Element 1 ist die Geräte-ID, die entsprechend der verwendeten Module angepasst werden muss (hier beispielhaft jeweils 12345)
+	-Element 2 ist ein Schlüsselwort für den jeweiligen Funktionstyp (z.b. BTN, LED, DIM, usw)
+	-Element 3 ist die InstanzID gemäß XML Templates (also welche Taster oder welcher Dimmer konkret gemeint ist)
+	-Element 4 zeigt die jeweilige Aktion zum Funktionstypen (z.b. ON, OFF, STATUS)
+	-Anschließend kommen optional diverse Parameter, die mit P1,P2,...P3 bezeichnet werden
+	
+	Im Folgenden wird nur noch auf die speziellen Telegramdaten eingegangen:
+	
+	(*------------------------------------------------------------*)
+	Taster oder digitaler Eingang (Sensor):
+	(*------------------------------------------------------------*)
+	Telegram Event:  	
+	
+	\xFD 12345.BTN.17.STATUS.P1 \xFE
+	
+		Funktionstyp:		BTN (kurz für Button)
+		Instanz-ID:			hier 17 (in XML nachschauen)
+		Aktion:				STATUS
+		P1:					1, wenn Taste gedrückt bzw. Eingang aktiv
+							0, wenn Taste losgelassen bzw. Eingang inaktiv
+	
+	Telegram Statusabfrage:  	
+	
+	\xFD 12345.BTN.17.gSTATUS \xFE
+	
+		Antwort:  			\xFD 12345.BTN.17.rSTATUS.P1 \xFE
+		P1:					1, wenn Taste gedrückt bzw. Eingang aktiv
+							0, wenn Taste losgelassen bzw. Eingang inaktiv
+
+	(*------------------------------------------------------------*)
+	Led (Aktor):
+	(*------------------------------------------------------------*)
+	Telegram Helligkeit setzen:  	
+	
+	\xFD 12345.LED.50.ON.P1.P2.P3 \xFE
+	
+		Funktionstyp:			LED
+		Instanz-ID:				hier 50 (in XML nachschauen)
+		Aktion:					ON
+		P1:						gewünschte Helligkeit 0-100
+		P2:						Einschaltdauer in 100stel Sekunden (0 = daueran)
+		P3:						Einschaltverzögerung in Sekunden (0 = ohne Verzögerung)
+	
+	Telegram Mindesthelligkeit:  	
+	
+	\xFD 12345.LED.50.SET_MBR.P1 \xFE
+		
+		Aktion:					SET_MBR (Setzt eine Mindesthelligkeit, die auch dann erhalten bleibt, wenn man per OFF ausschaltet)
+		P1:						gewünschte Helligkeit 0-100
+	
+	Telegram Statusabfrage:  	
+
+	\xFD 12345.LED.50.gSTATUS \xFE
+	
+		Antwort:  				\xFD 12345.LED.50.rSTATUS.P1.P2 \xFE
+		P1:						aktuelle Helligkeit 0-100
+		P2:						Einschaltdauer in 100stel Sekunden
+	
+	(*------------------------------------------------------------*)
+	Hintergrundbeleuchtung (Aktor):
+	(*------------------------------------------------------------*)
+	Telegram Minhelligkeit:  
+	
+	\xFD 12345.LBN.16.SET_MBR.P1 \xFE
+	
+		Aktion:					SET_MBR ((Setzt eine Mindesthelligkeit, die auch dann erhalten bleibt, wenn man per OFF ausschaltet)
+		P1:						gewünschte Helligkeit 0-100
+		
+	Telegram Statusabfrage:  	
+
+	\xFD 12345.LBN.16.gSTATUS \xFE
+	
+		Antwort:  				\xFD 12345.LBN.16.rSTATUS.P1 \xFE
+		P1:						aktuelle Helligkeit 0-100
+
+	(*------------------------------------------------------------*)
+	Temperatursensor (Sensor):
+	(*------------------------------------------------------------*)
+	Telegram Event:  	
+	
+	\xFD 12345.TMP.1.STATUS.P1.P2 \xFE
+	
+		Funktionstyp:			TMP (kurz für Temperatur)
+		Instanz-ID:				hier 1 (in XML nachschauen)
+		Aktion:					STATUS
+		P1:						Temperatur in Grad Vorkommastellen
+		P2:						Temperatur in Grad Nachkommastellen
+	
+	Telegram Statusabfrage:  
+	
+	\xFD 12345.TMP.1.gSTATUS \xFE
+	
+		Antwort:  				\xFD 12345.TMP.1.rSTATUS.P1.P2 \xFE
+		P1:						Temperatur in Grad Vorkommastellen
+		P2:						Temperatur in Grad Nachkommastellen
+
+	(*------------------------------------------------------------*)
+	Feuchtesensor (Sensor):
+	(*------------------------------------------------------------*)
+	Telegram Event:  	
+
+	\xFD 12345.RHD.1.STATUS.P1.P2 \xFE
+	
+		Funktionstyp:			RHD (kurz für Relative Humidity)
+		Instanz-ID:				hier 1 (in XML nachschauen)
+		Aktion:					STATUS
+		P1:						Relative Luftfeuchtigkeit 0-100 Vorkommastellen
+		P2:						Relative Luftfeuchtigkeit 0-100 Nachkommastellen
+
+	Telegram Statusabfrage:  	
+	
+	\xFD 12345.RHD.1.gSTATUS \xFE
+	
+	Antwort:  					\xFD 12345.RHD.1.rSTATUS.P1 \xFE
+	P1:							Relative Luftfeuchtigkeit 0-100 Vorkommastellen
+	P2:							Relative Luftfeuchtigkeit 0-100 Nachkommastellen
+
+	(*------------------------------------------------------------*)
+	Helligkeitssensor (Sensor):
+	(*------------------------------------------------------------*)
+	Telegram Event:  	
+	
+	\xFD 12345.BRS.23.STATUS.P1.P2 \xFE
+	
+		Funktionstyp:			BRS (kurz für Brightness Sensor)
+		Instanz-ID:				hier 23 (in XML nachschauen)
+		Aktion:					STATUS
+		P1:						Relative Helligkeit 0-255 Vorkommastellen
+		P2:						Relative Helligkeit 0-255 Nachkommastellen
+	
+	Telegram Statusabfrage:  	
+	
+	\xFD 12345.BRS.23.gSTATUS \xFE
+	
+	Antwort:  					\xFD 12345.BRS.23.rSTATUS.P1 \xFE
+	P1:							Relative Helligkeit 0-255 Vorkommastellen
+	P2:							Relative Helligkeit 0-255 Nachkommastellen
+
+(*======================================================================================================================================*)
+(* Alle Telegramme im Überblick *)	
+
+	<?xml version="1.0" encoding="utf-8"?>
+	<Comm Title="Haus-Bus ID 12345" Comment="" Baudrate="57600" Databits="8" Parity="1" EndChar="510">
+	<CommCmd Title="6-fach Taster 12345 - Hintergrundbeleuchtung" Comment="" CmdOn="\xFD12345.LBN.16.SET_MBR.&lt;v&gt;.0\xFE" CmdOff="\xFD12345.LBN.16.SET_MBR.0\xFE" Unit="" Analog="true" Text="false" Sensor="false" SourceValHigh="100" DestValHigh="100"/>
+	<CommCmd Title="6-fach Taster 12345 - Temperatursensor" Comment="" CmdOn="\xFD12345.TMP.1.STATUS.\v\xFE" CmdOff="" Unit="&lt;v.2&gt;" Analog="true" Text="false" Sensor="true" SourceValHigh="100" DestValHigh="100"/>
+	<CommCmd Title="6-fach Taster 12345 - Feuchtesensor" Comment="" CmdOn="\xFD12345.RHD.1.STATUS.\v\xFE" CmdOff="" Unit="&lt;v.x&gt;" Analog="true" Text="false" Sensor="true" SourceValHigh="100" DestValHigh="100"/>
+	<CommCmd Title="6-fach Taster 12345 - Helligkeitssensor" Comment="" CmdOn="\xFD12345.BRS.1.STATUS.\v\xFE" CmdOff="" Unit="&lt;v.x&gt;" Analog="true" Text="false" Sensor="true" SourceValHigh="100" DestValHigh="100"/>
+	<CommCmd Title="6-fach Taster 12345 - Led 1" Comment="" CmdOn="\xFD12345.LED.49.ON.&lt;v&gt;.0\xFE" CmdOff="\xFD12345.LED.49.OFF\xFE" Unit="" Analog="true" Text="false" Sensor="false" SourceValHigh="100" DestValHigh="100"/>
+	<CommCmd Title="6-fach Taster 12345 - Led 2" Comment="" CmdOn="\xFD12345.LED.50.ON.&lt;v&gt;.0\xFE" CmdOff="\xFD12345.LED.50.OFF\xFE" Unit="" Analog="true" Text="false" Sensor="false" SourceValHigh="100" DestValHigh="100"/>
+	<CommCmd Title="6-fach Taster 12345 - Led 3" Comment="" CmdOn="\xFD12345.LED.51.ON.&lt;v&gt;.0\xFE" CmdOff="\xFD12345.LED.51.OFF\xFE" Unit="" Analog="true" Text="false" Sensor="false" SourceValHigh="100" DestValHigh="100"/>
+	<CommCmd Title="6-fach Taster 12345 - Led 4" Comment="" CmdOn="\xFD12345.LED.52.ON.&lt;v&gt;.0\xFE" CmdOff="\xFD12345.LED.52.OFF\xFE" Unit="" Analog="true" Text="false" Sensor="false" SourceValHigh="100" DestValHigh="100"/>
+	<CommCmd Title="6-fach Taster 12345 - Led 5" Comment="" CmdOn="\xFD12345.LED.53.ON.&lt;v&gt;.0\xFE" CmdOff="\xFD12345.LED.53.OFF\xFE" Unit="" Analog="true" Text="false" Sensor="false" SourceValHigh="100" DestValHigh="100"/>
+	<CommCmd Title="6-fach Taster 12345 - Led 6" Comment="" CmdOn="\xFD12345.LED.54.ON.&lt;v&gt;.0\xFE" CmdOff="\xFD12345.LED.54.OFF\xFE" Unit="" Analog="true" Text="false" Sensor="false" SourceValHigh="100" DestValHigh="100"/>
+	<CommCmd Title="6-fach Taster 12345 - Taster 1" Comment="" CmdOn="\xFD12345.BTN.17.STATUS.\v\xFE" CmdOff="" Unit="&lt;v.x&gt;" Analog="true" Text="false" Sensor="true" SourceValHigh="100" DestValHigh="100"/>
+	<CommCmd Title="6-fach Taster 12345 - Taster 2" Comment="" CmdOn="\xFD12345.BTN.18.STATUS.\v\xFE" CmdOff="" Unit="&lt;v.x&gt;" Analog="true" Text="false" Sensor="true" SourceValHigh="100" DestValHigh="100"/>
+	<CommCmd Title="6-fach Taster 12345 - Taster 3" Comment="" CmdOn="\xFD12345.BTN.19.STATUS.\v\xFE" CmdOff="" Unit="&lt;v.x&gt;" Analog="true" Text="false" Sensor="true" SourceValHigh="100" DestValHigh="100"/>
+	<CommCmd Title="6-fach Taster 12345 - Taster 4" Comment="" CmdOn="\xFD12345.BTN.20.STATUS.\v\xFE" CmdOff="" Unit="&lt;v.x&gt;" Analog="true" Text="false" Sensor="true" SourceValHigh="100" DestValHigh="100"/>
+	<CommCmd Title="6-fach Taster 12345 - Taster 5" Comment="" CmdOn="\xFD12345.BTN.21.STATUS.\v\xFE" CmdOff="" Unit="&lt;v.x&gt;" Analog="true" Text="false" Sensor="true" SourceValHigh="100" DestValHigh="100"/>
+	<CommCmd Title="6-fach Taster 12345 - Taster 6" Comment="" CmdOn="\xFD12345.BTN.22.STATUS.\v\xFE" CmdOff="" Unit="&lt;v.x&gt;" Analog="true" Text="false" Sensor="true" SourceValHigh="100" DestValHigh="100"/>
+	<CommCmd Title="6-fach Taster 12345 - Extern Taster 1" Comment="" CmdOn="\xFD12345.BTN.33.STATUS.\v\xFE" CmdOff="" Unit="&lt;v.x&gt;" Analog="true" Text="false" Sensor="true" SourceValHigh="100" DestValHigh="100"/>
+	<CommCmd Title="6-fach Taster 12345 - Extern Taster 2" Comment="" CmdOn="\xFD12345.BTN.34.STATUS.\v\xFE" CmdOff="" Unit="&lt;v.x&gt;" Analog="true" Text="false" Sensor="true" SourceValHigh="100" DestValHigh="100"/>
+	<CommCmd Title="6-fach Taster 12345 - Extern Taster 3" Comment="" CmdOn="\xFD12345.BTN.35.STATUS.\v\xFE" CmdOff="" Unit="&lt;v.x&gt;" Analog="true" Text="false" Sensor="true" SourceValHigh="100" DestValHigh="100"/>
+	<CommCmd Title="6-fach Taster 12345 - Extern Taster 4" Comment="" CmdOn="\xFD12345.BTN.36.STATUS.\v\xFE" CmdOff="" Unit="&lt;v.x&gt;" Analog="true" Text="false" Sensor="true" SourceValHigh="100" DestValHigh="100"/>
+	<CommCmd Title="6-fach Taster 12345 - Extern Taster 5" Comment="" CmdOn="\xFD12345.BTN.37.STATUS.\v\xFE" CmdOff="" Unit="&lt;v.x&gt;" Analog="true" Text="false" Sensor="true" SourceValHigh="100" DestValHigh="100"/>
+	<CommCmd Title="6-fach Taster 12345 - Extern Taster 6" Comment="" CmdOn="\xFD12345.BTN.38.STATUS.\v\xFE" CmdOff="" Unit="&lt;v.x&gt;" Analog="true" Text="false" Sensor="true" SourceValHigh="100" DestValHigh="100"/>
+	<CommCmd Title="6-fach Taster 12345 - Extern Led 1" Comment="" CmdOn="\xFD12345.LED.65.ON.&lt;v&gt;.0\xFE" CmdOff="\xFD12345.LED.65.OFF\xFE" Unit="" Analog="true" Text="false" Sensor="false" SourceValHigh="100" DestValHigh="100"/>
+	<CommCmd Title="6-fach Taster 12345 - Extern Led 2" Comment="" CmdOn="\xFD12345.LED.66.ON.&lt;v&gt;.0\xFE" CmdOff="\xFD12345.LED.66.OFF\xFE" Unit="" Analog="true" Text="false" Sensor="false" SourceValHigh="100" DestValHigh="100"/>
+	<CommCmd Title="6-fach Taster 12345 - Extern Led 3" Comment="" CmdOn="\xFD12345.LED.67.ON.&lt;v&gt;.0\xFE" CmdOff="\xFD12345.LED.67.OFF\xFE" Unit="" Analog="true" Text="false" Sensor="false" SourceValHigh="100" DestValHigh="100"/>
+	<CommCmd Title="6-fach Taster 12345 - Extern Led 4" Comment="" CmdOn="\xFD12345.LED.68.ON.&lt;v&gt;.0\xFE" CmdOff="\xFD12345.LED.68.OFF\xFE" Unit="" Analog="true" Text="false" Sensor="false" SourceValHigh="100" DestValHigh="100"/>
+	<CommCmd Title="6-fach Taster 12345 - Extern Led 5" Comment="" CmdOn="\xFD12345.LED.69.ON.&lt;v&gt;.0\xFE" CmdOff="\xFD12345.LED.69.OFF\xFE" Unit="" Analog="true" Text="false" Sensor="false" SourceValHigh="100" DestValHigh="100"/>
+	<CommCmd Title="6-fach Taster 12345 - Extern Led 6" Comment="" CmdOn="\xFD12345.LED.70.ON.&lt;v&gt;.0\xFE" CmdOff="\xFD12345.LED.70.OFF\xFE" Unit="" Analog="true" Text="false" Sensor="false" SourceValHigh="100" DestValHigh="100"/>
+	<CommCmd Title="6-fach Taster 12345 - RFID Leser" Comment="" CmdOn="\xFD12345.RFD.65.TAG_ID.\v\xFE" CmdOff="" Unit="&lt;v.x&gt;" Analog="false" Text="true" Sensor="true" SourceValHigh="100" DestValHigh="100"/>
+	<CommCmd Title="6-fach Taster 12345 - RFID Leser" Comment="" CmdOn="\xFD12345.RFD.66.TAG_ID.\v\xFE" CmdOff="" Unit="&lt;v.x&gt;" Analog="false" Text="true" Sensor="true" SourceValHigh="100" DestValHigh="100"/>
+	<CommCmd Title="6-fach Taster 12345 - RFID Leser" Comment="" CmdOn="\xFD12345.RFD.67.TAG_ID.\v\xFE" CmdOff="" Unit="&lt;v.x&gt;" Analog="false" Text="true" Sensor="true" SourceValHigh="100" DestValHigh="100"/>
+	<CommCmd Title="6-fach Taster 12345 - RFID Leser" Comment="" CmdOn="\xFD12345.RFD.68.TAG_ID.\v\xFE" CmdOff="" Unit="&lt;v.x&gt;" Analog="false" Text="true" Sensor="true" SourceValHigh="100" DestValHigh="100"/>
+	<CommCmd Title="6-fach Taster 12345 - RFID Leser" Comment="" CmdOn="\xFD12345.RFD.69.TAG_ID.\v\xFE" CmdOff="" Unit="&lt;v.x&gt;" Analog="false" Text="true" Sensor="true" SourceValHigh="100" DestValHigh="100"/>
+	</Comm>
+*)
+		
+		]]></ST>
+      </Implementation>
+    </Action>
+    <LineIds Name="fb_TasterBus6F">
+      <LineId Id="1341" Count="0" />
+      <LineId Id="1340" Count="0" />
+      <LineId Id="1329" Count="2" />
+      <LineId Id="816" Count="0" />
+      <LineId Id="1339" Count="0" />
+      <LineId Id="642" Count="0" />
+      <LineId Id="445" Count="0" />
+      <LineId Id="1140" Count="0" />
+      <LineId Id="1236" Count="0" />
+      <LineId Id="1220" Count="2" />
+      <LineId Id="1275" Count="0" />
+      <LineId Id="1223" Count="2" />
+      <LineId Id="1215" Count="0" />
+      <LineId Id="1226" Count="0" />
+      <LineId Id="1129" Count="0" />
+      <LineId Id="1213" Count="0" />
+      <LineId Id="1227" Count="0" />
+      <LineId Id="1141" Count="0" />
+      <LineId Id="1143" Count="0" />
+      <LineId Id="1142" Count="0" />
+      <LineId Id="1244" Count="0" />
+      <LineId Id="1208" Count="0" />
+      <LineId Id="1160" Count="0" />
+      <LineId Id="1145" Count="0" />
+      <LineId Id="1161" Count="0" />
+      <LineId Id="1260" Count="0" />
+      <LineId Id="1144" Count="0" />
+      <LineId Id="946" Count="0" />
+      <LineId Id="1133" Count="0" />
+      <LineId Id="1130" Count="0" />
+      <LineId Id="1139" Count="0" />
+      <LineId Id="1182" Count="0" />
+      <LineId Id="1186" Count="0" />
+      <LineId Id="1233" Count="0" />
+      <LineId Id="1302" Count="0" />
+      <LineId Id="1306" Count="0" />
+      <LineId Id="1332" Count="0" />
+      <LineId Id="1473" Count="0" />
+      <LineId Id="1147" Count="0" />
+      <LineId Id="1174" Count="0" />
+      <LineId Id="1135" Count="2" />
+      <LineId Id="1132" Count="0" />
+      <LineId Id="1278" Count="0" />
+      <LineId Id="1277" Count="0" />
+      <LineId Id="1279" Count="0" />
+      <LineId Id="1216" Count="0" />
+      <LineId Id="1282" Count="0" />
+      <LineId Id="1285" Count="0" />
+      <LineId Id="1287" Count="1" />
+      <LineId Id="1281" Count="0" />
+      <LineId Id="1151" Count="0" />
+      <LineId Id="1146" Count="0" />
+      <LineId Id="1152" Count="0" />
+      <LineId Id="1303" Count="0" />
+      <LineId Id="1474" Count="0" />
+      <LineId Id="1153" Count="2" />
+      <LineId Id="1274" Count="0" />
+      <LineId Id="1156" Count="0" />
+      <LineId Id="1158" Count="0" />
+      <LineId Id="1157" Count="0" />
+      <LineId Id="1163" Count="1" />
+      <LineId Id="1150" Count="0" />
+      <LineId Id="1172" Count="0" />
+      <LineId Id="1307" Count="0" />
+      <LineId Id="1162" Count="0" />
+      <LineId Id="1165" Count="1" />
+      <LineId Id="1173" Count="0" />
+      <LineId Id="1180" Count="1" />
+      <LineId Id="1167" Count="1" />
+      <LineId Id="1175" Count="0" />
+      <LineId Id="1170" Count="0" />
+      <LineId Id="1169" Count="0" />
+      <LineId Id="1176" Count="1" />
+      <LineId Id="1171" Count="0" />
+      <LineId Id="1183" Count="0" />
+      <LineId Id="1191" Count="0" />
+      <LineId Id="1193" Count="0" />
+      <LineId Id="1192" Count="0" />
+      <LineId Id="1194" Count="1" />
+      <LineId Id="1178" Count="0" />
+      <LineId Id="1188" Count="0" />
+      <LineId Id="1235" Count="0" />
+      <LineId Id="1190" Count="0" />
+      <LineId Id="1189" Count="0" />
+      <LineId Id="1196" Count="1" />
+      <LineId Id="1179" Count="0" />
+      <LineId Id="1333" Count="1" />
+      <LineId Id="1200" Count="1" />
+      <LineId Id="1203" Count="0" />
+      <LineId Id="1199" Count="0" />
+      <LineId Id="1202" Count="0" />
+      <LineId Id="1198" Count="0" />
+      <LineId Id="1245" Count="1" />
+      <LineId Id="1299" Count="0" />
+      <LineId Id="1247" Count="0" />
+      <LineId Id="1465" Count="0" />
+      <LineId Id="1237" Count="0" />
+      <LineId Id="1315" Count="0" />
+      <LineId Id="1310" Count="1" />
+      <LineId Id="1318" Count="1" />
+      <LineId Id="1324" Count="0" />
+      <LineId Id="1466" Count="0" />
+      <LineId Id="1468" Count="2" />
+      <LineId Id="1467" Count="0" />
+      <LineId Id="1320" Count="0" />
+      <LineId Id="1328" Count="0" />
+      <LineId Id="1231" Count="0" />
+      <LineId Id="947" Count="0" />
+      <LineId Id="945" Count="0" />
+      <LineId Id="948" Count="0" />
+      <LineId Id="570" Count="0" />
+      <LineId Id="1241" Count="0" />
+      <LineId Id="569" Count="0" />
+      <LineId Id="578" Count="0" />
+      <LineId Id="571" Count="0" />
+      <LineId Id="573" Count="0" />
+      <LineId Id="577" Count="0" />
+      <LineId Id="661" Count="0" />
+      <LineId Id="1347" Count="0" />
+      <LineId Id="666" Count="1" />
+      <LineId Id="1239" Count="1" />
+      <LineId Id="668" Count="0" />
+    </LineIds>
+    <LineIds Name="fb_TasterBus6F.ac00_Event">
+      <LineId Id="140" Count="0" />
+      <LineId Id="181" Count="0" />
+      <LineId Id="183" Count="0" />
+      <LineId Id="141" Count="30" />
+      <LineId Id="180" Count="0" />
+      <LineId Id="1" Count="0" />
+    </LineIds>
+    <LineIds Name="fb_TasterBus6F.ac01_SetLED">
+      <LineId Id="386" Count="1" />
+      <LineId Id="71" Count="0" />
+      <LineId Id="388" Count="0" />
+      <LineId Id="58" Count="0" />
+      <LineId Id="151" Count="1" />
+      <LineId Id="262" Count="0" />
+      <LineId Id="737" Count="0" />
+      <LineId Id="736" Count="0" />
+      <LineId Id="725" Count="0" />
+      <LineId Id="738" Count="0" />
+      <LineId Id="726" Count="9" />
+      <LineId Id="327" Count="0" />
+      <LineId Id="739" Count="0" />
+      <LineId Id="1" Count="1" />
+      <LineId Id="91" Count="1" />
+      <LineId Id="858" Count="0" />
+      <LineId Id="864" Count="0" />
+      <LineId Id="854" Count="0" />
+      <LineId Id="848" Count="0" />
+      <LineId Id="749" Count="0" />
+      <LineId Id="752" Count="0" />
+      <LineId Id="754" Count="0" />
+      <LineId Id="851" Count="0" />
+      <LineId Id="753" Count="0" />
+      <LineId Id="751" Count="0" />
+      <LineId Id="804" Count="0" />
+      <LineId Id="806" Count="0" />
+      <LineId Id="808" Count="0" />
+      <LineId Id="853" Count="0" />
+      <LineId Id="809" Count="0" />
+      <LineId Id="852" Count="0" />
+      <LineId Id="805" Count="0" />
+      <LineId Id="776" Count="0" />
+      <LineId Id="778" Count="1" />
+      <LineId Id="856" Count="0" />
+      <LineId Id="781" Count="1" />
+      <LineId Id="780" Count="0" />
+      <LineId Id="777" Count="0" />
+      <LineId Id="849" Count="0" />
+      <LineId Id="855" Count="0" />
+      <LineId Id="297" Count="0" />
+      <LineId Id="825" Count="1" />
+      <LineId Id="99" Count="0" />
+      <LineId Id="677" Count="0" />
+      <LineId Id="345" Count="0" />
+      <LineId Id="96" Count="0" />
+      <LineId Id="741" Count="1" />
+      <LineId Id="744" Count="1" />
+      <LineId Id="824" Count="0" />
+      <LineId Id="740" Count="0" />
+      <LineId Id="774" Count="0" />
+      <LineId Id="98" Count="0" />
+      <LineId Id="158" Count="3" />
+      <LineId Id="97" Count="0" />
+      <LineId Id="309" Count="0" />
+      <LineId Id="282" Count="0" />
+      <LineId Id="10" Count="0" />
+      <LineId Id="816" Count="0" />
+      <LineId Id="837" Count="0" />
+      <LineId Id="815" Count="0" />
+      <LineId Id="565" Count="0" />
+      <LineId Id="567" Count="0" />
+      <LineId Id="566" Count="0" />
+      <LineId Id="838" Count="0" />
+      <LineId Id="417" Count="0" />
+      <LineId Id="818" Count="0" />
+      <LineId Id="835" Count="0" />
+      <LineId Id="419" Count="0" />
+      <LineId Id="422" Count="0" />
+      <LineId Id="521" Count="0" />
+      <LineId Id="423" Count="1" />
+      <LineId Id="572" Count="0" />
+      <LineId Id="425" Count="7" />
+      <LineId Id="590" Count="0" />
+      <LineId Id="581" Count="1" />
+      <LineId Id="584" Count="0" />
+      <LineId Id="580" Count="0" />
+      <LineId Id="586" Count="1" />
+      <LineId Id="863" Count="0" />
+      <LineId Id="828" Count="0" />
+      <LineId Id="589" Count="0" />
+      <LineId Id="588" Count="0" />
+      <LineId Id="439" Count="0" />
+      <LineId Id="839" Count="0" />
+      <LineId Id="440" Count="0" />
+      <LineId Id="444" Count="0" />
+      <LineId Id="836" Count="0" />
+      <LineId Id="518" Count="0" />
+      <LineId Id="445" Count="0" />
+      <LineId Id="522" Count="0" />
+      <LineId Id="446" Count="1" />
+      <LineId Id="574" Count="0" />
+      <LineId Id="448" Count="0" />
+      <LineId Id="763" Count="1" />
+      <LineId Id="451" Count="4" />
+      <LineId Id="591" Count="6" />
+      <LineId Id="862" Count="0" />
+      <LineId Id="829" Count="0" />
+      <LineId Id="598" Count="0" />
+      <LineId Id="442" Count="0" />
+      <LineId Id="462" Count="0" />
+      <LineId Id="517" Count="0" />
+      <LineId Id="485" Count="1" />
+      <LineId Id="841" Count="2" />
+      <LineId Id="469" Count="0" />
+      <LineId Id="575" Count="0" />
+      <LineId Id="470" Count="0" />
+      <LineId Id="765" Count="1" />
+      <LineId Id="473" Count="4" />
+      <LineId Id="599" Count="4" />
+      <LineId Id="722" Count="1" />
+      <LineId Id="860" Count="1" />
+      <LineId Id="830" Count="0" />
+      <LineId Id="724" Count="0" />
+      <LineId Id="859" Count="0" />
+      <LineId Id="420" Count="0" />
+      <LineId Id="20" Count="0" />
+      <LineId Id="240" Count="0" />
+      <LineId Id="222" Count="0" />
+      <LineId Id="632" Count="2" />
+      <LineId Id="636" Count="0" />
+      <LineId Id="639" Count="5" />
+      <LineId Id="652" Count="3" />
+      <LineId Id="638" Count="0" />
+      <LineId Id="635" Count="0" />
+      <LineId Id="514" Count="0" />
+      <LineId Id="513" Count="0" />
+      <LineId Id="512" Count="0" />
+      <LineId Id="494" Count="0" />
+      <LineId Id="516" Count="0" />
+      <LineId Id="834" Count="0" />
+      <LineId Id="495" Count="0" />
+      <LineId Id="524" Count="0" />
+      <LineId Id="496" Count="1" />
+      <LineId Id="576" Count="0" />
+      <LineId Id="498" Count="0" />
+      <LineId Id="767" Count="1" />
+      <LineId Id="501" Count="4" />
+      <LineId Id="624" Count="6" />
+      <LineId Id="831" Count="0" />
+      <LineId Id="631" Count="0" />
+      <LineId Id="284" Count="0" />
+      <LineId Id="541" Count="0" />
+      <LineId Id="540" Count="0" />
+      <LineId Id="515" Count="0" />
+      <LineId Id="562" Count="0" />
+      <LineId Id="803" Count="0" />
+      <LineId Id="544" Count="3" />
+      <LineId Id="577" Count="0" />
+      <LineId Id="548" Count="0" />
+      <LineId Id="769" Count="1" />
+      <LineId Id="551" Count="4" />
+      <LineId Id="656" Count="6" />
+      <LineId Id="832" Count="0" />
+      <LineId Id="663" Count="0" />
+      <LineId Id="542" Count="1" />
+      <LineId Id="239" Count="0" />
+      <LineId Id="287" Count="0" />
+      <LineId Id="164" Count="0" />
+      <LineId Id="265" Count="2" />
+      <LineId Id="269" Count="0" />
+      <LineId Id="268" Count="0" />
+      <LineId Id="285" Count="0" />
+      <LineId Id="261" Count="0" />
+      <LineId Id="260" Count="0" />
+      <LineId Id="270" Count="0" />
+      <LineId Id="365" Count="0" />
+      <LineId Id="367" Count="0" />
+      <LineId Id="678" Count="0" />
+      <LineId Id="409" Count="0" />
+      <LineId Id="383" Count="0" />
+      <LineId Id="578" Count="0" />
+      <LineId Id="381" Count="0" />
+      <LineId Id="370" Count="2" />
+      <LineId Id="366" Count="0" />
+      <LineId Id="373" Count="0" />
+      <LineId Id="664" Count="6" />
+      <LineId Id="711" Count="0" />
+      <LineId Id="671" Count="0" />
+      <LineId Id="23" Count="0" />
+      <LineId Id="709" Count="0" />
+      <LineId Id="704" Count="3" />
+      <LineId Id="702" Count="0" />
+      <LineId Id="714" Count="0" />
+      <LineId Id="719" Count="0" />
+      <LineId Id="715" Count="1" />
+      <LineId Id="721" Count="0" />
+      <LineId Id="718" Count="0" />
+      <LineId Id="717" Count="0" />
+      <LineId Id="708" Count="0" />
+      <LineId Id="720" Count="0" />
+      <LineId Id="701" Count="0" />
+      <LineId Id="699" Count="0" />
+      <LineId Id="680" Count="18" />
+      <LineId Id="286" Count="0" />
+      <LineId Id="703" Count="0" />
+      <LineId Id="258" Count="0" />
+      <LineId Id="241" Count="0" />
+      <LineId Id="248" Count="1" />
+      <LineId Id="674" Count="0" />
+      <LineId Id="253" Count="0" />
+      <LineId Id="272" Count="3" />
+      <LineId Id="281" Count="0" />
+      <LineId Id="279" Count="0" />
+      <LineId Id="276" Count="0" />
+      <LineId Id="278" Count="0" />
+      <LineId Id="271" Count="0" />
+      <LineId Id="221" Count="0" />
+      <LineId Id="32" Count="0" />
+      <LineId Id="3" Count="0" />
+      <LineId Id="155" Count="0" />
+      <LineId Id="154" Count="0" />
+    </LineIds>
+    <LineIds Name="fb_TasterBus6F.ac01_SetReset">
+      <LineId Id="301" Count="1" />
+      <LineId Id="300" Count="0" />
+      <LineId Id="71" Count="0" />
+      <LineId Id="138" Count="0" />
+      <LineId Id="192" Count="0" />
+      <LineId Id="137" Count="0" />
+      <LineId Id="268" Count="0" />
+      <LineId Id="58" Count="0" />
+      <LineId Id="1" Count="0" />
+      <LineId Id="258" Count="0" />
+      <LineId Id="4" Count="0" />
+      <LineId Id="105" Count="0" />
+      <LineId Id="197" Count="1" />
+      <LineId Id="253" Count="0" />
+      <LineId Id="199" Count="0" />
+      <LineId Id="317" Count="0" />
+      <LineId Id="252" Count="0" />
+      <LineId Id="257" Count="0" />
+      <LineId Id="203" Count="2" />
+      <LineId Id="235" Count="0" />
+      <LineId Id="209" Count="1" />
+      <LineId Id="331" Count="1" />
+      <LineId Id="335" Count="0" />
+      <LineId Id="333" Count="1" />
+      <LineId Id="336" Count="0" />
+      <LineId Id="211" Count="17" />
+      <LineId Id="233" Count="1" />
+      <LineId Id="202" Count="0" />
+      <LineId Id="200" Count="0" />
+      <LineId Id="196" Count="0" />
+      <LineId Id="259" Count="0" />
+      <LineId Id="201" Count="0" />
+      <LineId Id="10" Count="0" />
+      <LineId Id="108" Count="0" />
+      <LineId Id="140" Count="0" />
+      <LineId Id="191" Count="0" />
+      <LineId Id="286" Count="2" />
+      <LineId Id="290" Count="1" />
+      <LineId Id="43" Count="0" />
+      <LineId Id="50" Count="0" />
+      <LineId Id="318" Count="7" />
+      <LineId Id="14" Count="0" />
+      <LineId Id="260" Count="0" />
+      <LineId Id="23" Count="0" />
+      <LineId Id="25" Count="0" />
+      <LineId Id="326" Count="1" />
+      <LineId Id="277" Count="0" />
+      <LineId Id="279" Count="0" />
+      <LineId Id="292" Count="2" />
+      <LineId Id="329" Count="0" />
+      <LineId Id="32" Count="0" />
+      <LineId Id="262" Count="0" />
+      <LineId Id="95" Count="0" />
+      <LineId Id="97" Count="0" />
+      <LineId Id="112" Count="0" />
+      <LineId Id="243" Count="1" />
+      <LineId Id="111" Count="0" />
+      <LineId Id="98" Count="0" />
+      <LineId Id="96" Count="0" />
+      <LineId Id="299" Count="0" />
+      <LineId Id="158" Count="0" />
+      <LineId Id="237" Count="2" />
+      <LineId Id="242" Count="0" />
+      <LineId Id="241" Count="0" />
+      <LineId Id="240" Count="0" />
+      <LineId Id="263" Count="0" />
+      <LineId Id="116" Count="0" />
+      <LineId Id="104" Count="0" />
+      <LineId Id="117" Count="0" />
+      <LineId Id="123" Count="1" />
+      <LineId Id="303" Count="0" />
+      <LineId Id="125" Count="0" />
+      <LineId Id="190" Count="0" />
+      <LineId Id="170" Count="0" />
+      <LineId Id="127" Count="0" />
+      <LineId Id="143" Count="3" />
+      <LineId Id="152" Count="0" />
+      <LineId Id="172" Count="0" />
+      <LineId Id="171" Count="0" />
+      <LineId Id="149" Count="2" />
+      <LineId Id="147" Count="0" />
+      <LineId Id="126" Count="0" />
+      <LineId Id="264" Count="0" />
+      <LineId Id="129" Count="1" />
+      <LineId Id="135" Count="0" />
+      <LineId Id="245" Count="1" />
+      <LineId Id="284" Count="0" />
+      <LineId Id="330" Count="0" />
+      <LineId Id="136" Count="0" />
+      <LineId Id="131" Count="0" />
+      <LineId Id="295" Count="2" />
+      <LineId Id="249" Count="0" />
+      <LineId Id="255" Count="1" />
+      <LineId Id="132" Count="0" />
+      <LineId Id="176" Count="0" />
+      <LineId Id="133" Count="0" />
+      <LineId Id="128" Count="0" />
+      <LineId Id="3" Count="0" />
+      <LineId Id="173" Count="0" />
+    </LineIds>
+    <LineIds Name="fb_TasterBus6F.ac02_Ping">
+      <LineId Id="195" Count="1" />
+      <LineId Id="194" Count="0" />
+      <LineId Id="177" Count="0" />
+      <LineId Id="206" Count="0" />
+      <LineId Id="178" Count="0" />
+      <LineId Id="197" Count="1" />
+      <LineId Id="200" Count="0" />
+      <LineId Id="205" Count="0" />
+      <LineId Id="192" Count="0" />
+      <LineId Id="179" Count="6" />
+      <LineId Id="199" Count="0" />
+      <LineId Id="190" Count="0" />
+      <LineId Id="153" Count="0" />
+      <LineId Id="201" Count="0" />
+      <LineId Id="174" Count="1" />
+    </LineIds>
+    <LineIds Name="fb_TasterBus6F.ac10_Counter">
+      <LineId Id="16" Count="1" />
+      <LineId Id="3" Count="0" />
+      <LineId Id="2" Count="0" />
+      <LineId Id="4" Count="0" />
+      <LineId Id="7" Count="0" />
+      <LineId Id="14" Count="0" />
+      <LineId Id="10" Count="1" />
+      <LineId Id="13" Count="0" />
+      <LineId Id="12" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+    <LineIds Name="fb_TasterBus6F.ac99_Doku">
+      <LineId Id="1" Count="1" />
+      <LineId Id="12" Count="0" />
+      <LineId Id="9" Count="1" />
+      <LineId Id="13" Count="0" />
+      <LineId Id="192" Count="1" />
+      <LineId Id="190" Count="0" />
+      <LineId Id="178" Count="0" />
+      <LineId Id="180" Count="9" />
+      <LineId Id="179" Count="0" />
+      <LineId Id="191" Count="0" />
+      <LineId Id="3" Count="1" />
+      <LineId Id="177" Count="0" />
+      <LineId Id="15" Count="0" />
+      <LineId Id="28" Count="2" />
+      <LineId Id="16" Count="11" />
+      <LineId Id="14" Count="0" />
+      <LineId Id="31" Count="0" />
+      <LineId Id="41" Count="0" />
+      <LineId Id="32" Count="0" />
+      <LineId Id="34" Count="0" />
+      <LineId Id="36" Count="0" />
+      <LineId Id="48" Count="0" />
+      <LineId Id="44" Count="0" />
+      <LineId Id="47" Count="0" />
+      <LineId Id="37" Count="3" />
+      <LineId Id="35" Count="0" />
+      <LineId Id="49" Count="0" />
+      <LineId Id="51" Count="0" />
+      <LineId Id="54" Count="2" />
+      <LineId Id="52" Count="1" />
+      <LineId Id="50" Count="0" />
+      <LineId Id="59" Count="0" />
+      <LineId Id="57" Count="0" />
+      <LineId Id="60" Count="0" />
+      <LineId Id="62" Count="0" />
+      <LineId Id="64" Count="0" />
+      <LineId Id="81" Count="2" />
+      <LineId Id="65" Count="7" />
+      <LineId Id="84" Count="2" />
+      <LineId Id="73" Count="0" />
+      <LineId Id="75" Count="2" />
+      <LineId Id="88" Count="0" />
+      <LineId Id="87" Count="0" />
+      <LineId Id="89" Count="0" />
+      <LineId Id="78" Count="2" />
+      <LineId Id="63" Count="0" />
+      <LineId Id="90" Count="2" />
+      <LineId Id="107" Count="0" />
+      <LineId Id="115" Count="2" />
+      <LineId Id="108" Count="0" />
+      <LineId Id="118" Count="0" />
+      <LineId Id="111" Count="1" />
+      <LineId Id="120" Count="0" />
+      <LineId Id="119" Count="0" />
+      <LineId Id="121" Count="0" />
+      <LineId Id="113" Count="1" />
+      <LineId Id="106" Count="0" />
+      <LineId Id="93" Count="2" />
+      <LineId Id="123" Count="0" />
+      <LineId Id="134" Count="2" />
+      <LineId Id="124" Count="6" />
+      <LineId Id="137" Count="2" />
+      <LineId Id="131" Count="2" />
+      <LineId Id="122" Count="0" />
+      <LineId Id="96" Count="2" />
+      <LineId Id="142" Count="0" />
+      <LineId Id="154" Count="0" />
+      <LineId Id="153" Count="0" />
+      <LineId Id="155" Count="0" />
+      <LineId Id="143" Count="6" />
+      <LineId Id="156" Count="2" />
+      <LineId Id="150" Count="2" />
+      <LineId Id="140" Count="0" />
+      <LineId Id="99" Count="2" />
+      <LineId Id="160" Count="0" />
+      <LineId Id="171" Count="2" />
+      <LineId Id="161" Count="6" />
+      <LineId Id="174" Count="2" />
+      <LineId Id="168" Count="2" />
+      <LineId Id="105" Count="0" />
+      <LineId Id="231" Count="0" />
+      <LineId Id="61" Count="0" />
+      <LineId Id="232" Count="0" />
+      <LineId Id="195" Count="35" />
+      <LineId Id="194" Count="0" />
+      <LineId Id="42" Count="1" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

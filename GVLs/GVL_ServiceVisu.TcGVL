@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <GVL Name="GVL_ServiceVisu" Id="{425a2973-449c-4744-84c7-e86f4f934993}">
+    <Declaration><![CDATA[{attribute 'qualified_only'}
+VAR_GLOBAL
+	iDeviceTasterVisu			:INT := 1;
+	iDeviceRelaisVisu			:INT := cMaxBusTaster+1;
+	
+	bTasterServiceAktiv			:ARRAY[1..cMaxBusTaster] OF BOOL;
+	bRelaisServiceAktiv			:ARRAY[cMaxBusTaster+1..cMaxBusTaster+cMaxBusRelais+1] OF BOOL;
+	stTasterService				:ARRAY[1..cMaxBusTaster] OF ST_BusTaster6F_Input;
+	stRelaisService				:ARRAY[cMaxBusTaster+1..cMaxBusTaster+cMaxBusRelais+1] OF ST_BusRelais16F_Input;
+	
+END_VAR]]></Declaration>
+  </GVL>
+</TcPlcObject>
