@@ -1156,7 +1156,7 @@
                               </o>
                               <o>
                                 <v n="Flags">2L</v>
-                                <v n="BasicTypeNodeValue">"RS485_COM_PRG.fbRelais[GVL_ServiceVisu.iDeviceRelaisVisu].Q_stOutput"</v>
+                                <v n="BasicTypeNodeValue">"fbRelais[GVL_ServiceVisu.iDeviceRelaisVisu].Q_stOutput"</v>
                                 <v n="BasicTypeNodeAcceptsExpression">true</v>
                                 <n n="BasicTypeNodeFastAccess" />
                                 <a n="BasicTypeNodeEnumValues" et="String" />
@@ -1185,7 +1185,7 @@
                               </o>
                               <o>
                                 <v n="Flags">2L</v>
-                                <v n="BasicTypeNodeValue">"RS485_COM_PRG.fbRelais[GVL_ServiceVisu.iDeviceRelaisVisu].Q_stCnt"</v>
+                                <v n="BasicTypeNodeValue">"fbRelais[GVL_ServiceVisu.iDeviceRelaisVisu].Q_stCnt"</v>
                                 <v n="BasicTypeNodeAcceptsExpression">true</v>
                                 <n n="BasicTypeNodeFastAccess" />
                                 <a n="BasicTypeNodeEnumValues" et="String" />
@@ -1249,11 +1249,11 @@
                         </o>
                         <o>
                           <v n="Id">2292305700L</v>
-                          <v n="Value">"RS485_COM_PRG.fbRelais[GVL_ServiceVisu.iDeviceRelaisVisu].Q_stOutput"</v>
+                          <v n="Value">"fbRelais[GVL_ServiceVisu.iDeviceRelaisVisu].Q_stOutput"</v>
                         </o>
                         <o>
                           <v n="Id">1238100617L</v>
-                          <v n="Value">"RS485_COM_PRG.fbRelais[GVL_ServiceVisu.iDeviceRelaisVisu].Q_stCnt"</v>
+                          <v n="Value">"fbRelais[GVL_ServiceVisu.iDeviceRelaisVisu].Q_stCnt"</v>
                         </o>
                       </l>
                     </o>
@@ -1905,7 +1905,7 @@
                               </o>
                               <o>
                                 <v n="Flags">2L</v>
-                                <v n="BasicTypeNodeValue">"RS485_COM_PRG.fbTaster[GVL_ServiceVisu.iDeviceTasterVisu].Q_stOutput"</v>
+                                <v n="BasicTypeNodeValue">"fbTaster[GVL_ServiceVisu.iDeviceTasterVisu].Q_stOutput"</v>
                                 <v n="BasicTypeNodeAcceptsExpression">true</v>
                                 <n n="BasicTypeNodeFastAccess" />
                                 <a n="BasicTypeNodeEnumValues" et="String" />
@@ -1934,7 +1934,7 @@
                               </o>
                               <o>
                                 <v n="Flags">2L</v>
-                                <v n="BasicTypeNodeValue">"RS485_COM_PRG.fbTaster[GVL_ServiceVisu.iDeviceTasterVisu].Q_stCnt"</v>
+                                <v n="BasicTypeNodeValue">"fbTaster[GVL_ServiceVisu.iDeviceTasterVisu].Q_stCnt"</v>
                                 <v n="BasicTypeNodeAcceptsExpression">true</v>
                                 <n n="BasicTypeNodeFastAccess" />
                                 <a n="BasicTypeNodeEnumValues" et="String" />
@@ -1998,11 +1998,11 @@
                         </o>
                         <o>
                           <v n="Id">3981169864L</v>
-                          <v n="Value">"RS485_COM_PRG.fbTaster[GVL_ServiceVisu.iDeviceTasterVisu].Q_stOutput"</v>
+                          <v n="Value">"fbTaster[GVL_ServiceVisu.iDeviceTasterVisu].Q_stOutput"</v>
                         </o>
                         <o>
                           <v n="Id">1797300466L</v>
-                          <v n="Value">"RS485_COM_PRG.fbTaster[GVL_ServiceVisu.iDeviceTasterVisu].Q_stCnt"</v>
+                          <v n="Value">"fbTaster[GVL_ServiceVisu.iDeviceTasterVisu].Q_stCnt"</v>
                         </o>
                       </l>
                     </o>

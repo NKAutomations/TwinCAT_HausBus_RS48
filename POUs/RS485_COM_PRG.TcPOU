@@ -12,8 +12,7 @@ Date          	| Version    	| created under        	| Author          	| Remark
 
 PROGRAM RS485_COM_PRG
 VAR  
-    fbTaster 					:ARRAY[1..cMaxBusTaster] OF fb_TasterBus6F;	
-	fbRelais					:ARRAY[cMaxBusTaster+1..cMaxBusRelais+cMaxBusTaster+1] OF fb_RelaisBus16F;
+    
     i,h,j						:INT;
 	
 	fbRS485Startup				:fb_RS485Startup;		(* Startup Parametrierung der Klemme/ RS485 Bus *)
