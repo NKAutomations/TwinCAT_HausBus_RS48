@@ -85,7 +85,7 @@ Neue Gerätetypen oder Features können hinzugefügt werden durch:
 
 ## Lizenz
 
-Dieses Projekt ist ein Beta-Release von [NKAutomations](https://haus-bus.de) und derzeit ausschließlich zur internen oder Testverwendung bestimmt. Lizenzbedingungen siehe `LICENSE` (falls vorhanden).
+Dieses Projekt ist ein Beta-Release von [NKAutomations] und derzeit ausschließlich zur internen oder Testverwendung bestimmt. 
 
 ---
 
