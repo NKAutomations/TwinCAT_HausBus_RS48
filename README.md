@@ -1,4 +1,4 @@
-# TwinCAT_HausBus_RS48
+# TwinCAT_HausBus_RS485
 TwinCAT RS485 Hausbus # RS485HausBus_Beta
 
 Ein TwinCAT 3-basiertes Automatisierungsprojekt zur Ansteuerung von Haus-Bus.de-Komponenten über eine proprietäre serielle Kommunikation via RS485. Es handelt sich **nicht** um Modbus, sondern um ein eigenes, leichtgewichtiges Master-Slave-Protokoll für die Hausautomatisierung.
