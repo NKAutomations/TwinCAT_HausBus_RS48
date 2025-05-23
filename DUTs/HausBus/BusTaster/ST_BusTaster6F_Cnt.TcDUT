@@ -1,0 +1,11 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_BusTaster6F_Cnt" Id="{05692633-9d61-49ec-bd95-a65e144056e5}">
+    <Declaration><![CDATA[TYPE ST_BusTaster6F_Cnt :
+STRUCT
+	dwCntButtons    :ARRAY[1..6] OF DWORD;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

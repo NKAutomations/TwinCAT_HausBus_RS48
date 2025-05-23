@@ -1,0 +1,60 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="fb_BusRhdEvent_1" Id="{dfd095a3-edbd-494b-9074-579b38eea361}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK fb_BusRhdEvent_1
+VAR_INPUT
+	 I_sID         			:STRING(10);     // Geräte-ID (z.B. '12345')
+	 I_sInstID				:STRING(2) 	:=	'17';
+	 I_sReceivedString		:STRING(255);	
+	 I_bReset				:BOOL;
+END_VAR
+VAR_OUTPUT
+	Q_lrRhd					:LREAL;
+END_VAR
+VAR	
+	findStringTemp			:STRING;	(* Wird für TMP/ BRS/ RHD verwendet *)
+
+	sRhd1					:STRING;
+	sRhd2					:STRING;
+	
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[findStringTemp	:= CONCAT(I_sID,'.');
+findStringTemp	:= CONCAT(findStringTemp,'RHD');
+findStringTemp	:= CONCAT(findStringTemp,'.');
+findStringTemp	:= CONCAT(findStringTemp,I_sInstID);
+findStringTemp	:= CONCAT(findStringTemp,'.');
+
+IF I_bReset
+THEN
+	sRhd1 := '0';
+ELSE
+	IF FIND(I_sReceivedString,findStringTemp) >0 
+	THEN
+		sRhd1 :=MID(I_sReceivedString, (* LÄNGE*) 4, FIND(I_sReceivedString,'RHD.1.STATUS.')+ LEN('RHD.1.STATUS.'));
+	END_IF
+END_IF
+
+Q_lrRhd :=	STRING_TO_LREAL(sRhd1);]]></ST>
+    </Implementation>
+    <LineIds Name="fb_BusRhdEvent_1">
+      <LineId Id="76" Count="0" />
+      <LineId Id="60" Count="0" />
+      <LineId Id="82" Count="1" />
+      <LineId Id="116" Count="0" />
+      <LineId Id="203" Count="0" />
+      <LineId Id="74" Count="0" />
+      <LineId Id="204" Count="0" />
+      <LineId Id="208" Count="0" />
+      <LineId Id="206" Count="0" />
+      <LineId Id="75" Count="0" />
+      <LineId Id="87" Count="0" />
+      <LineId Id="89" Count="0" />
+      <LineId Id="88" Count="0" />
+      <LineId Id="153" Count="0" />
+      <LineId Id="209" Count="0" />
+      <LineId Id="152" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
-  <POU Name="fb_FilterArray" Id="{a14e9235-0a75-469e-8d14-9cfdcc052ed6}" SpecialFunc="None">
+  <POU Name="fb_FilterArray_1" Id="{a14e9235-0a75-469e-8d14-9cfdcc052ed6}" SpecialFunc="None">
     <Declaration><![CDATA[(*======================================================================================================================================*)
 (* Dieser Baustein Filtert eine Lreal Variable durch bildung eines Mittelwerts
 (*======================================================================================================================================*)						
@@ -10,7 +10,7 @@ Date          		| Version    		| created under        		| Author          		| Re
 (*´10/07/2024   	| 1.00      			| TC2			  		| N.Kersting       	| first release *)
 (*´15/07/2024   	| 1.01      			| TC2			  		| N.Kersting       	| Filterung nun Variabel einstellbar *)
 (*======================================================================================================================================*)
-FUNCTION_BLOCK fb_FilterArray
+FUNCTION_BLOCK fb_FilterArray_1
 VAR_INPUT
 	I_bExcecute	:BOOL;
 	I_nWert		:LREAL;
@@ -48,7 +48,7 @@ ELSE
     Q_nFilter := 0;
 END_IF]]></ST>
     </Implementation>
-    <LineIds Name="fb_FilterArray">
+    <LineIds Name="fb_FilterArray_1">
       <LineId Id="84" Count="21" />
       <LineId Id="9" Count="0" />
     </LineIds>

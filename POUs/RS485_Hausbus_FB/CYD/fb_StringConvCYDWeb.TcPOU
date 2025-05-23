@@ -1,0 +1,58 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="fb_StringConvCYDWeb" Id="{d6005199-0f42-4663-9232-996ede7b8624}" SpecialFunc="None">
+    <Declaration><![CDATA[(*======================================================================================================================================*)
+(*fb_StringConvTB6F:	Zusammensetzen des Strings für 6Fach Bust Taster (LEDs und Hintergrundbeleuchtung und Reset)*)
+(*
+Date          	| Version    	| created under        	| Author          	| Remark *)
+(*====================================================================================================================================================*)
+(*05/05/2025   	| 1.00      		| TC3		  		| N.Kersting       | first release *)
+(*06/05/2025   	| 1.01      		| TC3		  		| N.Kersting       | Externe LEDs Nachgerüstet *)
+(*08/05/2025   	| 1.02      		| TC3		  		| N.Kersting       | Umschaltung ob Externe LEDs verwendet werden oder nicht *)
+(*22/05/2025   	| 1.03      		| TC3		  		| N.Kersting       | Spezialversion für CYD *)
+(*====================================================================================================================================================*)
+FUNCTION_BLOCK fb_StringConvCYDWeb
+VAR_INPUT
+	I_diID				:DINT;							(* Device ID *)
+	I_bWebOn			:BOOL;
+	I_sStartZeichen		:BYTE := 16#FD;					(* Startzeichen Präfix *)
+	I_sEndZeichen		:BYTE := 16#FE;					(* Endzeichen Suffix *)
+END_VAR
+VAR_OUTPUT
+	Q_sConvString		:STRING(255);
+END_VAR
+VAR
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+IF I_bWebOn
+THEN
+	Q_sConvString:=	CONCAT(F_ToCHR(I_sStartZeichen),DINT_TO_STRING(I_diID));
+	Q_sConvString:=	CONCAT(Q_sConvString,'.SYS.');
+	Q_sConvString:=	CONCAT(Q_sConvString,INT_TO_STRING(1));
+	Q_sConvString:=	CONCAT(Q_sConvString,'.WEBSERVER.');
+	Q_sConvString:=	CONCAT(Q_sConvString,INT_TO_STRING(1));
+	Q_sConvString:=	CONCAT(Q_sConvString,F_ToCHR(I_sEndZeichen));
+ELSE
+	Q_sConvString:=	CONCAT(F_ToCHR(I_sStartZeichen),DINT_TO_STRING(I_diID));
+	Q_sConvString:=	CONCAT(Q_sConvString,'.SYS.');
+	Q_sConvString:=	CONCAT(Q_sConvString,INT_TO_STRING(1));
+	Q_sConvString:=	CONCAT(Q_sConvString,'.WEBSERVER.');
+	Q_sConvString:=	CONCAT(Q_sConvString,INT_TO_STRING(0));
+	Q_sConvString:=	CONCAT(Q_sConvString,F_ToCHR(I_sEndZeichen));
+END_IF
+]]></ST>
+    </Implementation>
+    <LineIds Name="fb_StringConvCYDWeb">
+      <LineId Id="877" Count="2" />
+      <LineId Id="882" Count="4" />
+      <LineId Id="881" Count="0" />
+      <LineId Id="890" Count="0" />
+      <LineId Id="892" Count="4" />
+      <LineId Id="891" Count="0" />
+      <LineId Id="880" Count="0" />
+      <LineId Id="197" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

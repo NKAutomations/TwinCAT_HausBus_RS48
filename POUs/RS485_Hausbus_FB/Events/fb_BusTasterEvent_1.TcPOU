@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
-  <POU Name="fb_BusTasterEvent" Id="{c49e62e3-8862-4b59-ab27-a26658929b6b}" SpecialFunc="None">
-    <Declaration><![CDATA[FUNCTION_BLOCK fb_BusTasterEvent
+  <POU Name="fb_BusTasterEvent_1" Id="{1863f34e-dd47-4d85-8d8e-67f195c49bd9}" SpecialFunc="None">
+    <Declaration><![CDATA[FUNCTION_BLOCK fb_BusTasterEvent_1
 VAR_INPUT
 	 I_sID         			:STRING(10);     // Geräte-ID (z.B. '12345')
 	 I_sInstID				:STRING(2) 	:=	'17';
@@ -53,7 +53,7 @@ THEN
 	Q_bOut := TRUE;
 END_IF]]></ST>
     </Implementation>
-    <LineIds Name="fb_BusTasterEvent">
+    <LineIds Name="fb_BusTasterEvent_1">
       <LineId Id="163" Count="0" />
       <LineId Id="170" Count="0" />
       <LineId Id="169" Count="0" />

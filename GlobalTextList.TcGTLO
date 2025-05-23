@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
-  <GlobalTextList Name="GlobalTextList" Id="{0952d3f9-a9a5-453d-9c34-6f595de3f007}">
+  <GlobalTextList Name="GlobalTextList" Id="{917a12a2-5ca7-4f1b-a08c-b90dacf462b5}">
     <XmlArchive>
       <Data>
         <o xml:space="preserve" t="GlobalTextListObject">
@@ -28,6 +28,11 @@
             <o>
               <v n="TextID">"715"</v>
               <v n="TextDefault">"BTN1Ext"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"23"</v>
+              <v n="TextDefault">"BTN2"</v>
               <l n="LanguageTexts" t="ArrayList" />
             </o>
             <o>
@@ -111,13 +116,28 @@
               <l n="LanguageTexts" t="ArrayList" />
             </o>
             <o>
+              <v n="TextID">"680"</v>
+              <v n="TextDefault">"BTN7 %s"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
               <v n="TextID">"941"</v>
               <v n="TextDefault">"BTN8"</v>
               <l n="LanguageTexts" t="ArrayList" />
             </o>
             <o>
+              <v n="TextID">"988"</v>
+              <v n="TextDefault">"BTN8 %s"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
               <v n="TextID">"450"</v>
               <v n="TextDefault">"Bus"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"700"</v>
+              <v n="TextDefault">"Bus Auslastung"</v>
               <l n="LanguageTexts" t="ArrayList" />
             </o>
             <o>
@@ -146,6 +166,17 @@
               <l n="LanguageTexts" t="ArrayList" />
             </o>
             <o>
+              <v n="TextID">"330"</v>
+              <v n="TextDefault">"CYD"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"1529"</v>
+              <v n="TextDefault">"Display: %s
+Beleuchtung"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
               <v n="TextID">"323"</v>
               <v n="TextDefault">"Done"</v>
               <l n="LanguageTexts" t="ArrayList" />
@@ -161,8 +192,23 @@
               <l n="LanguageTexts" t="ArrayList" />
             </o>
             <o>
+              <v n="TextID">"546"</v>
+              <v n="TextDefault">"Externe EA"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
               <v n="TextID">"790"</v>
               <v n="TextDefault">"FiFo Master"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"29"</v>
+              <v n="TextDefault">"Hintergrund LEDs: %s"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"896"</v>
+              <v n="TextDefault">"Hintergrund: %s"</v>
               <l n="LanguageTexts" t="ArrayList" />
             </o>
             <o>
@@ -173,6 +219,11 @@
             <o>
               <v n="TextID">"180"</v>
               <v n="TextDefault">"Interne E/A's"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"872"</v>
+              <v n="TextDefault">"Interne Eeingänge "</v>
               <l n="LanguageTexts" t="ArrayList" />
             </o>
             <o>
@@ -291,6 +342,16 @@
               <l n="LanguageTexts" t="ArrayList" />
             </o>
             <o>
+              <v n="TextID">"846"</v>
+              <v n="TextDefault">"Service Seite"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"458"</v>
+              <v n="TextDefault">"ServiceMode"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
               <v n="TextID">"172"</v>
               <v n="TextDefault">"Startup
 Done"</v>
@@ -323,6 +384,11 @@ Error"</v>
               <l n="LanguageTexts" t="ArrayList" />
             </o>
             <o>
+              <v n="TextID">"495"</v>
+              <v n="TextDefault">"TX %s"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
               <v n="TextID">"18"</v>
               <v n="TextDefault">"TX: %s"</v>
               <l n="LanguageTexts" t="ArrayList" />
@@ -332,11 +398,21 @@ Error"</v>
               <v n="TextDefault">"Visu Service Mode"</v>
               <l n="LanguageTexts" t="ArrayList" />
             </o>
+            <o>
+              <v n="TextID">"217"</v>
+              <v n="TextDefault">"WebServer"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"932"</v>
+              <v n="TextDefault">"Wifi"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
           </l>
           <l n="Languages" t="ArrayList" />
-          <v n="GuidInit">{544d40e1-e98f-4392-bf51-234435765af0}</v>
-          <v n="GuidReInit">{f67e26a4-269c-4b38-8248-c5b229fff014}</v>
-          <v n="GuidExitX">{5adc8585-183d-4928-bb26-7730275154f2}</v>
+          <v n="GuidInit">{7b94ecb2-b58b-479c-9e79-5f973139944f}</v>
+          <v n="GuidReInit">{60b999aa-2f5c-408a-a2d3-01242ff76508}</v>
+          <v n="GuidExitX">{fc247425-8fac-4aad-a494-76d1beb71635}</v>
         </o>
       </Data>
       <TypeList>

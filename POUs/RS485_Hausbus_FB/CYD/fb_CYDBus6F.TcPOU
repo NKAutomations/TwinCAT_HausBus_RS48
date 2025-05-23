@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
-  <POU Name="fb_TasterBus6F" Id="{70e73769-1aa0-4d74-979d-b7360a0709e4}" SpecialFunc="None">
+  <POU Name="fb_CYDBus6F" Id="{b5ad2f58-3dcd-467e-ae4b-ab4e8763d1e5}" SpecialFunc="None">
     <Declaration><![CDATA[(*======================================================================================================================================*)
 (*FB_TasterBusSimple:	Einfache RS485 Kommunikation für Haus-bus.de Komponenten zum testen 	
 						Achtung: Bei dem 6 Fach Taster ist zu Beachten, dass es nur 4 Externe EA/s gibt also 4 LEDs und 4 Taster *)
@@ -27,13 +27,16 @@ Date          	| Version    	| created under        	| Author          	| Remark
 (*10/05/2025   	| 3.00      		| TC3		  		| N.Kersting       | Umstellung auf Externe FiFo Sendebaustein *)
 (*13/05/2025   	| 3.01      		| TC3		  		| N.Kersting       | Viele Bugs gefixt, bei Änderung der Ausgängen wird nun eine Anforderung gesetzt  *)
 (*13/05/2025   	| 3.02      		| TC3		  		| N.Kersting       | Test für Github *)
-(*23/05/2025   	| 3.03      		| TC3		  		| N.Kersting       | Auto - Input Fault Detection implementiert (Wenn Taster zu lange aktiviert bleibt ) *)
+(*22/05/2025   	| 3.03      		| TC3		  		| N.Kersting       | Grundaufbau vom BusTaster, jetzt allerdings für ein CYD mit den gleichen Funktionen *)
+(*22/05/2025   	| 3.04      		| TC3		  		| N.Kersting       | ServiceFunktionen für CYD Hinzugefügt (Wifi und Webserver Starten)*)
+(*23/05/2025   	| 3.05      		| TC3		  		| N.Kersting       | Neue eigene Input Struktur für das CYD Implementiert*)
+(*23/05/2025   	| 3.06      		| TC3		  		| N.Kersting       | Auto - Input Fault Detection implementiert (Wenn Taster zu lange aktiviert bleibt ) *)
 (*====================================================================================================================================================*)
-FUNCTION_BLOCK fb_TasterBus6F
+FUNCTION_BLOCK fb_CYDBus6F
 VAR_INPUT
 	I_FifoID			:INT;
 	I_bPingStart		:BOOL;						(* Ping Done vom Vorheriegen*)
-	I_stInput			:ST_BusTaster6F_Input;
+	I_stInput			:ST_BusCYD6F_Input;
 	I_StringReceived	:STRING(255);
 END_VAR
 VAR_OUTPUT
@@ -60,6 +63,20 @@ VAR
 	bInputFaultDetect	:BOOL := TRUE;				(* Prüft die Eingänge ob sie zu lange geschaltet wurden und führt ein reset des eingangs aus *)
 	tInputFaultDetect	:TIME := T#10S;				(* Prüft die Eingänge ob sie zu lange geschaltet wurden und führt ein reset des eingangs aus *)
 (*----------------------------------------------*)
+(*	Service Funktionen Aktivieren *)
+(*----------------------------------------------*)	
+	bWebServer			:BOOL := FALSE;				(* zuerst funktion auswählen (bWebserver/ bWifi, bService) und dann mit bStartServiceMode ausführen *)
+	bWifi				:BOOL := FALSE;				(* zuerst funktion auswählen (bWebserver/ bWifi, bService) und dann mit bStartServiceMode ausführen *)
+	bService			:BOOL := FALSE;				(* zuerst funktion auswählen (bWebserver/ bWifi, bService) und dann mit bStartServiceMode ausführen *)
+	(*	*)
+	bStartServiceMode	:BOOL := FALSE;				(* zuerst ServiceMode Aktivieren und dann mit bStartServiceMode ausführen *)
+	
+	(* Speichern der zustände *)
+	bMemWebServer		:BOOL;
+	bMemWifi			:BOOL;
+	bMemService			:BOOL;
+	
+(*----------------------------------------------*)
 (* Strings *)
 (*----------------------------------------------*)			
 	sSendString			:STRING(255);
@@ -76,6 +93,9 @@ VAR
 	fbBusBrsEvent		:fb_BusBrsEvent;
 	fbBusRhdEvent		:fb_BusRhdEvent;
 	fbStringConvTB6F	:fb_StringConvTB6F;
+	fbStringConvWeb		:fb_StringConvCYDWeb;
+	fbStringConvWifi	:fb_StringConvCYDWifi;
+	fbStringConvService	:fb_StringConvCYDService;
 	fbRS485ComCheck		:fb_RS485ComCheck;
 (*----------------------------------------------*)
 (* Indexe *)
@@ -141,6 +161,12 @@ tReceiveTimeout :=	GVL_HausBus_Parameter.cTimeReceiveTimeoutTaster;
 bCheckPing :=		GVL_HausBus_Parameter.bUseTasterPing;
 iMaxPingTry :=		GVL_HausBus_Parameter.cMaxPingTry;
 
+(* Service *)
+bWebServer :=			I_stInput.bWebServer;
+bWifi :=				I_stInput.bWifi;
+bService :=				I_stInput.bService;
+bStartServiceMode :=	I_stInput.bServiceMode;
+
 (*============================================================================================*)
 (* Startup Zurücksetzen Reset *)
 r_TrigReset(CLK := I_stInput.bReset);
@@ -159,6 +185,10 @@ IF NOT I_stInput.bExecute
 	OR r_trigStartupAfterReset.Q
 THEN
 	iDeviceStartup := 0;
+ELSIF
+	bStartServiceMode
+THEN	
+	iDeviceStartup := 5;
 END_IF
 
 (*============================================================================================*)
@@ -177,6 +207,10 @@ CASE iDeviceStartup OF
 	bStartUpCheckPing := FALSE;
 	bActivateSend := FALSE;
 	bReadyToPing := TRUE;
+	bMemWebServer :=FALSE;
+	bMemWifi :=	FALSE;
+	bMemService	:= FALSE;
+	
 	sFiFoSend := ''; 
 	iStepSet := 0;
 	
@@ -237,9 +271,19 @@ CASE iDeviceStartup OF
 	END_IF
 
 (*============================================================================================*)
+5:	sDeviceStartup := 'Service Funktionen Steuern';
+	ac01_SetService();
+
+	IF NOT bStartServiceMode 
+	THEN
+		iStepSet := 0;
+		iDeviceStartup := 0;
+	END_IF
+	
+(*============================================================================================*)
 999: 
 	(*bReadyToPing := NOT fbRS485SendCmd.Q_bBusy;*)
-		
+	
 	(* LED Setzen *)
 	ac01_SetLED();
 	
@@ -284,7 +328,7 @@ Q_stOutput.bStartupDone	:=	bStartupDone;
 Q_stOutput.sState :=	CONCAT(I_stInput.sName,'| ');
 Q_stOutput.sState :=	CONCAT(Q_stOutput.sState, sDeviceStartup);]]></ST>
     </Implementation>
-    <Action Name="ac00_Event" Id="{83bfb0bb-b0ff-4e80-b6d4-0258e14b0c4b}">
+    <Action Name="ac00_Event" Id="{9f48ea95-0266-4afc-8f61-fa8863939c59}">
       <Implementation>
         <ST><![CDATA[(*============================================================================================*)
 (*	EVENT Schrittkette *)
@@ -292,7 +336,6 @@ Q_stOutput.sState :=	CONCAT(Q_stOutput.sState, sDeviceStartup);]]></ST>
 sReceived := I_StringReceived;
 	
 FOR i := 1 TO 6 BY 1 DO 
-	
 	fbBusTasterEvent[i](
 		I_bFaultDetection	:=	bInputFaultDetect,
 		I_tFaultDetectTime	:=	tInputFaultDetect,
@@ -327,7 +370,7 @@ FOR i := 1 TO 6 BY 1 DO
 END_FOR]]></ST>
       </Implementation>
     </Action>
-    <Action Name="ac01_SetLED" Id="{b7fb8336-04b4-4110-9f58-6fd9b85f277c}">
+    <Action Name="ac01_SetLED" Id="{3503c28e-98e0-4224-9478-836ac7f44401}">
       <Implementation>
         <ST><![CDATA[(*============================================================================================*)
 (*	LED Helligkeit Setzen/ Startup Schrittkette *)
@@ -598,7 +641,7 @@ CASE iStepSet OF
 		I_bReset :=			FALSE,
 		I_bHasExtLED :=		I_stInput.bExtOutLED,
 		I_diID:= 			I_stInput.diID, 
-		I_iLEDBg:= 			100,		 
+		I_iLEDBg:= 			5,		 
 		I_sStartZeichen:= 	sStartZeichen, 
 		I_sEndZeichen:= 	sEndZeichen, 
 		Q_sConvString=> 	sSendString);
@@ -636,7 +679,7 @@ CASE iStepSet OF
 		I_bReset :=			FALSE,
 		I_bHasExtLED :=		I_stInput.bExtOutLED,
 		I_diID:= 			I_stInput.diID, 
-		I_iLEDBg:= 			0,		 
+		I_iLEDBg:= 			100,		 
 		I_sStartZeichen:= 	sStartZeichen, 
 		I_sEndZeichen:= 	sEndZeichen, 
 		Q_sConvString=> 	sSendString);
@@ -673,7 +716,7 @@ END_CASE
 (*bErrorSet := fbRS485SendCmd.Q_bError;*)]]></ST>
       </Implementation>
     </Action>
-    <Action Name="ac01_SetReset" Id="{f38df076-26cd-4c70-8fca-472d75326647}">
+    <Action Name="ac01_SetReset" Id="{3250e07b-46b2-446c-b1e6-4aa30407dc3b}">
       <Implementation>
         <ST><![CDATA[(*============================================================================================*)
 (*	RESET Schrittkette *)
@@ -828,7 +871,138 @@ END_CASE
 ]]></ST>
       </Implementation>
     </Action>
-    <Action Name="ac02_Ping" Id="{e15ff938-0f92-4435-ad78-69e9510884f0}">
+    <Action Name="ac01_SetService" Id="{94ad80a2-2838-4d36-9fe7-30dfbd3ea1c7}">
+      <Implementation>
+        <ST><![CDATA[(*============================================================================================*)
+(*	RESET Schrittkette *)
+(*============================================================================================*)
+tonResetTimeout(
+	PT := tResetTimeout);
+
+tonResetDone();
+
+(* Einfaches Setzen der LED Helligkeiten (0-100 Prozent *)
+CASE iStepSet OF
+(*============================================================================================*)
+0:	sStateReset := 'INIT';
+	
+	IF bSetExecute
+		AND (bMemWebServer <> bWebServer
+		OR bMemWifi <> bWifi
+		OR bMemService <> bService )
+	THEN
+		bMemWebServer :=	bWebServer;
+		bMemWifi :=			bWifi;
+		bMemService	:=		bService;
+		
+		sFiFoSend := ''; 
+		tonResetTimeout.IN := FALSE;
+		tonResetDone.IN := FALSE;
+		icntResetSend := 0;
+		
+		iStepSet := iStepSet +1;
+	END_IF
+
+(*============================================================================================*)	
+1:	sStateReset := 'Sende Webserver Befehl';
+	fbStringConvWeb(
+		I_diID:= 			I_stInput.diID,
+		I_bWebOn:= 			bWebServer, 
+		I_sStartZeichen:= 	sStartZeichen, 
+		I_sEndZeichen:= 	sEndZeichen, 
+		Q_sConvString=> 	sSendString);
+	
+	(* Senden an FiFo*)
+	IF GVL_RS485FiFoSend.bSendDoneFiFo[I_FifoID]
+	THEN
+		sFiFoSend :=	sSendString;
+	END_IF
+	IF NOT GVL_RS485FiFoSend.bSendDoneFiFo[I_FifoID]
+	THEN
+		iStepSet := iStepSet+1;
+	END_IF
+
+(*============================================================================================*)
+2:	sStateReset := 'Sende Webserver Befehl';
+
+	IF GVL_RS485FiFoSend.bSendDoneFiFo[I_FifoID]
+	THEN
+		sFiFoSend := ''; 
+		iStepSet := 3;
+	END_IF
+	
+(*============================================================================================*)	
+3:	sStateReset := 'Sende Wifi Befehl';
+	
+	fbStringConvWifi(
+		I_diID:= 			I_stInput.diID,
+		I_bWifiOn:= 		bWifi, 
+		I_sStartZeichen:= 	sStartZeichen, 
+		I_sEndZeichen:= 	sEndZeichen, 
+		Q_sConvString=> 	sSendString);
+	
+	(* Senden an FiFo*)
+	IF GVL_RS485FiFoSend.bSendDoneFiFo[I_FifoID]
+	THEN
+		sFiFoSend :=	sSendString;
+	END_IF
+	IF NOT GVL_RS485FiFoSend.bSendDoneFiFo[I_FifoID]
+	THEN
+		iStepSet := iStepSet+1;
+	END_IF
+	
+(*============================================================================================*)	
+4:	sStateReset := 'Sende Wifi Befehl';
+
+	IF GVL_RS485FiFoSend.bSendDoneFiFo[I_FifoID]
+	THEN
+		sFiFoSend := ''; 
+		iStepSet := 5;
+	END_IF
+(*============================================================================================*)	
+5:	sStateReset := 'Sende Service Befehl';
+	
+	fbStringConvService(
+		I_diID:= 			I_stInput.diID,
+		I_bServiceOn:= 		bService, 
+		I_sStartZeichen:= 	sStartZeichen, 
+		I_sEndZeichen:= 	sEndZeichen, 
+		Q_sConvString=> 	sSendString);
+	
+	(* Senden an FiFo*)
+	IF GVL_RS485FiFoSend.bSendDoneFiFo[I_FifoID]
+	THEN
+		sFiFoSend :=	sSendString;
+	END_IF
+	IF NOT GVL_RS485FiFoSend.bSendDoneFiFo[I_FifoID]
+	THEN
+		iStepSet := iStepSet+1;
+	END_IF
+	
+(*============================================================================================*)	
+6:	sStateReset := 'Sende Service Befehl';
+
+	IF GVL_RS485FiFoSend.bSendDoneFiFo[I_FifoID]
+	THEN
+		sFiFoSend := ''; 
+		iStepSet := 7;
+	END_IF
+	
+(*============================================================================================*)
+7:	sStateReset := 'Fertig';
+	
+	IF bMemWebServer <> bWebServer
+		OR bMemWifi <> bWifi
+		OR bMemService <> bService 
+	THEN
+		iStepSet := 0;
+	END_IF
+	
+END_CASE
+]]></ST>
+      </Implementation>
+    </Action>
+    <Action Name="ac02_Ping" Id="{ce16acc0-8d28-4420-a138-108ff038a797}">
       <Implementation>
         <ST><![CDATA[(*============================================================================================*)
 (* 	Ping Bautsein, Checkt ob die Kommunikation vorhanden ist *)
@@ -856,7 +1030,7 @@ fbRS485ComCheck(
 	]]></ST>
       </Implementation>
     </Action>
-    <Action Name="ac10_Counter" Id="{6a58da45-1209-4c68-8a58-7cca2b2db800}">
+    <Action Name="ac10_Counter" Id="{4ce14bda-00cc-4512-9389-ecd907beec5d}">
       <Implementation>
         <ST><![CDATA[(*============================================================================================*)
 (* 	Zähler *)
@@ -873,7 +1047,7 @@ FOR j := 1 TO 6 BY 1 DO
 END_FOR]]></ST>
       </Implementation>
     </Action>
-    <Action Name="ac99_Doku" Id="{4cbd1a4a-aeef-4ec8-a22d-709892c4662d}">
+    <Action Name="ac99_Doku" Id="{b00f08e6-380e-411c-9cf7-802c9da84598}">
       <Implementation>
         <ST><![CDATA[(*======================================================================================================================================*)
 (*	DOKU	*)
@@ -1092,12 +1266,16 @@ END_FOR]]></ST>
 		]]></ST>
       </Implementation>
     </Action>
-    <LineIds Name="fb_TasterBus6F">
+    <LineIds Name="fb_CYDBus6F">
       <LineId Id="1341" Count="0" />
       <LineId Id="1340" Count="0" />
       <LineId Id="1329" Count="2" />
       <LineId Id="816" Count="0" />
+      <LineId Id="1780" Count="0" />
+      <LineId Id="1776" Count="0" />
       <LineId Id="1339" Count="0" />
+      <LineId Id="1775" Count="0" />
+      <LineId Id="1777" Count="2" />
       <LineId Id="642" Count="0" />
       <LineId Id="445" Count="0" />
       <LineId Id="1140" Count="0" />
@@ -1112,6 +1290,7 @@ END_FOR]]></ST>
       <LineId Id="1227" Count="0" />
       <LineId Id="1141" Count="0" />
       <LineId Id="1143" Count="0" />
+      <LineId Id="1750" Count="3" />
       <LineId Id="1142" Count="0" />
       <LineId Id="1244" Count="0" />
       <LineId Id="1208" Count="0" />
@@ -1130,6 +1309,9 @@ END_FOR]]></ST>
       <LineId Id="1302" Count="0" />
       <LineId Id="1306" Count="0" />
       <LineId Id="1332" Count="0" />
+      <LineId Id="1772" Count="1" />
+      <LineId Id="1771" Count="0" />
+      <LineId Id="1774" Count="0" />
       <LineId Id="1473" Count="0" />
       <LineId Id="1147" Count="0" />
       <LineId Id="1174" Count="0" />
@@ -1177,7 +1359,17 @@ END_FOR]]></ST>
       <LineId Id="1235" Count="0" />
       <LineId Id="1190" Count="0" />
       <LineId Id="1189" Count="0" />
-      <LineId Id="1196" Count="1" />
+      <LineId Id="1740" Count="0" />
+      <LineId Id="1735" Count="0" />
+      <LineId Id="1196" Count="0" />
+      <LineId Id="1741" Count="0" />
+      <LineId Id="1743" Count="0" />
+      <LineId Id="1739" Count="0" />
+      <LineId Id="1744" Count="0" />
+      <LineId Id="1746" Count="1" />
+      <LineId Id="1745" Count="0" />
+      <LineId Id="1748" Count="0" />
+      <LineId Id="1197" Count="0" />
       <LineId Id="1179" Count="0" />
       <LineId Id="1333" Count="1" />
       <LineId Id="1200" Count="1" />
@@ -1216,19 +1408,17 @@ END_FOR]]></ST>
       <LineId Id="1239" Count="1" />
       <LineId Id="668" Count="0" />
     </LineIds>
-    <LineIds Name="fb_TasterBus6F.ac00_Event">
+    <LineIds Name="fb_CYDBus6F.ac00_Event">
       <LineId Id="140" Count="0" />
       <LineId Id="181" Count="0" />
       <LineId Id="183" Count="0" />
-      <LineId Id="141" Count="2" />
-      <LineId Id="184" Count="0" />
-      <LineId Id="144" Count="0" />
-      <LineId Id="185" Count="1" />
+      <LineId Id="141" Count="3" />
+      <LineId Id="184" Count="1" />
       <LineId Id="145" Count="26" />
       <LineId Id="180" Count="0" />
       <LineId Id="1" Count="0" />
     </LineIds>
-    <LineIds Name="fb_TasterBus6F.ac01_SetLED">
+    <LineIds Name="fb_CYDBus6F.ac01_SetLED">
       <LineId Id="386" Count="1" />
       <LineId Id="71" Count="0" />
       <LineId Id="388" Count="0" />
@@ -1442,7 +1632,7 @@ END_FOR]]></ST>
       <LineId Id="155" Count="0" />
       <LineId Id="154" Count="0" />
     </LineIds>
-    <LineIds Name="fb_TasterBus6F.ac01_SetReset">
+    <LineIds Name="fb_CYDBus6F.ac01_SetReset">
       <LineId Id="301" Count="1" />
       <LineId Id="300" Count="0" />
       <LineId Id="71" Count="0" />
@@ -1543,7 +1733,69 @@ END_FOR]]></ST>
       <LineId Id="3" Count="0" />
       <LineId Id="173" Count="0" />
     </LineIds>
-    <LineIds Name="fb_TasterBus6F.ac02_Ping">
+    <LineIds Name="fb_CYDBus6F.ac01_SetService">
+      <LineId Id="301" Count="1" />
+      <LineId Id="300" Count="0" />
+      <LineId Id="71" Count="0" />
+      <LineId Id="138" Count="0" />
+      <LineId Id="192" Count="0" />
+      <LineId Id="137" Count="0" />
+      <LineId Id="268" Count="0" />
+      <LineId Id="58" Count="0" />
+      <LineId Id="1" Count="0" />
+      <LineId Id="258" Count="0" />
+      <LineId Id="4" Count="0" />
+      <LineId Id="105" Count="0" />
+      <LineId Id="406" Count="0" />
+      <LineId Id="418" Count="1" />
+      <LineId Id="197" Count="0" />
+      <LineId Id="199" Count="0" />
+      <LineId Id="411" Count="0" />
+      <LineId Id="414" Count="1" />
+      <LineId Id="413" Count="0" />
+      <LineId Id="257" Count="0" />
+      <LineId Id="203" Count="2" />
+      <LineId Id="235" Count="0" />
+      <LineId Id="200" Count="0" />
+      <LineId Id="196" Count="0" />
+      <LineId Id="259" Count="0" />
+      <LineId Id="201" Count="0" />
+      <LineId Id="191" Count="0" />
+      <LineId Id="338" Count="1" />
+      <LineId Id="341" Count="2" />
+      <LineId Id="50" Count="0" />
+      <LineId Id="344" Count="0" />
+      <LineId Id="318" Count="7" />
+      <LineId Id="14" Count="0" />
+      <LineId Id="260" Count="0" />
+      <LineId Id="23" Count="0" />
+      <LineId Id="25" Count="0" />
+      <LineId Id="326" Count="1" />
+      <LineId Id="277" Count="0" />
+      <LineId Id="293" Count="1" />
+      <LineId Id="32" Count="0" />
+      <LineId Id="262" Count="0" />
+      <LineId Id="95" Count="0" />
+      <LineId Id="97" Count="0" />
+      <LineId Id="347" Count="15" />
+      <LineId Id="240" Count="0" />
+      <LineId Id="263" Count="0" />
+      <LineId Id="116" Count="0" />
+      <LineId Id="364" Count="4" />
+      <LineId Id="126" Count="0" />
+      <LineId Id="369" Count="0" />
+      <LineId Id="371" Count="26" />
+      <LineId Id="264" Count="0" />
+      <LineId Id="398" Count="0" />
+      <LineId Id="129" Count="1" />
+      <LineId Id="135" Count="0" />
+      <LineId Id="399" Count="0" />
+      <LineId Id="416" Count="1" />
+      <LineId Id="402" Count="3" />
+      <LineId Id="3" Count="0" />
+      <LineId Id="173" Count="0" />
+    </LineIds>
+    <LineIds Name="fb_CYDBus6F.ac02_Ping">
       <LineId Id="195" Count="1" />
       <LineId Id="194" Count="0" />
       <LineId Id="177" Count="0" />
@@ -1560,7 +1812,7 @@ END_FOR]]></ST>
       <LineId Id="201" Count="0" />
       <LineId Id="174" Count="1" />
     </LineIds>
-    <LineIds Name="fb_TasterBus6F.ac10_Counter">
+    <LineIds Name="fb_CYDBus6F.ac10_Counter">
       <LineId Id="16" Count="1" />
       <LineId Id="3" Count="0" />
       <LineId Id="2" Count="0" />
@@ -1573,7 +1825,7 @@ END_FOR]]></ST>
       <LineId Id="15" Count="0" />
       <LineId Id="5" Count="0" />
     </LineIds>
-    <LineIds Name="fb_TasterBus6F.ac99_Doku">
+    <LineIds Name="fb_CYDBus6F.ac99_Doku">
       <LineId Id="1" Count="1" />
       <LineId Id="12" Count="0" />
       <LineId Id="9" Count="1" />

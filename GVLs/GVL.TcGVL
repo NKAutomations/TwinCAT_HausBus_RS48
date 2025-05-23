@@ -10,8 +10,6 @@ VAR_GLOBAL
 	uiEtherCATStateBK1120_RS485COM	AT %I* : UINT;			// EtherCAT Status 
 	uiKBusStateBK1120_RS485COM		AT %I* : UINT;			// Buskoppler Status
 	
-	fbTaster 						:ARRAY[1..cMaxBusTaster] OF fb_TasterBus6F;	
-	fbRelais						:ARRAY[cMaxBusTaster+1..cMaxBusRelais+cMaxBusTaster+1] OF fb_RelaisBus16F;
 END_VAR]]></Declaration>
   </GVL>
 </TcPlcObject>

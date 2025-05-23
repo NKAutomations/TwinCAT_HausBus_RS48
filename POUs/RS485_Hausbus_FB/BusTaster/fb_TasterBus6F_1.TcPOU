@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
-  <POU Name="fb_TasterBus6F" Id="{70e73769-1aa0-4d74-979d-b7360a0709e4}" SpecialFunc="None">
+  <POU Name="fb_TasterBus6F_1" Id="{cd67bec2-473b-4776-8416-ea7dafc8b380}" SpecialFunc="None">
     <Declaration><![CDATA[(*======================================================================================================================================*)
 (*FB_TasterBusSimple:	Einfache RS485 Kommunikation für Haus-bus.de Komponenten zum testen 	
 						Achtung: Bei dem 6 Fach Taster ist zu Beachten, dass es nur 4 Externe EA/s gibt also 4 LEDs und 4 Taster *)
@@ -29,7 +29,7 @@ Date          	| Version    	| created under        	| Author          	| Remark
 (*13/05/2025   	| 3.02      		| TC3		  		| N.Kersting       | Test für Github *)
 (*23/05/2025   	| 3.03      		| TC3		  		| N.Kersting       | Auto - Input Fault Detection implementiert (Wenn Taster zu lange aktiviert bleibt ) *)
 (*====================================================================================================================================================*)
-FUNCTION_BLOCK fb_TasterBus6F
+FUNCTION_BLOCK fb_TasterBus6F_1
 VAR_INPUT
 	I_FifoID			:INT;
 	I_bPingStart		:BOOL;						(* Ping Done vom Vorheriegen*)
@@ -284,7 +284,7 @@ Q_stOutput.bStartupDone	:=	bStartupDone;
 Q_stOutput.sState :=	CONCAT(I_stInput.sName,'| ');
 Q_stOutput.sState :=	CONCAT(Q_stOutput.sState, sDeviceStartup);]]></ST>
     </Implementation>
-    <Action Name="ac00_Event" Id="{83bfb0bb-b0ff-4e80-b6d4-0258e14b0c4b}">
+    <Action Name="ac00_Event" Id="{6a87f87c-a71e-43a5-8eaf-be83e9c3c617}">
       <Implementation>
         <ST><![CDATA[(*============================================================================================*)
 (*	EVENT Schrittkette *)
@@ -327,7 +327,7 @@ FOR i := 1 TO 6 BY 1 DO
 END_FOR]]></ST>
       </Implementation>
     </Action>
-    <Action Name="ac01_SetLED" Id="{b7fb8336-04b4-4110-9f58-6fd9b85f277c}">
+    <Action Name="ac01_SetLED" Id="{32f841a4-b1ac-4cb0-9eb9-8dd03036a8fb}">
       <Implementation>
         <ST><![CDATA[(*============================================================================================*)
 (*	LED Helligkeit Setzen/ Startup Schrittkette *)
@@ -673,7 +673,7 @@ END_CASE
 (*bErrorSet := fbRS485SendCmd.Q_bError;*)]]></ST>
       </Implementation>
     </Action>
-    <Action Name="ac01_SetReset" Id="{f38df076-26cd-4c70-8fca-472d75326647}">
+    <Action Name="ac01_SetReset" Id="{36fab29a-aeff-4a55-b8ed-8197e4c76ca6}">
       <Implementation>
         <ST><![CDATA[(*============================================================================================*)
 (*	RESET Schrittkette *)
@@ -828,7 +828,7 @@ END_CASE
 ]]></ST>
       </Implementation>
     </Action>
-    <Action Name="ac02_Ping" Id="{e15ff938-0f92-4435-ad78-69e9510884f0}">
+    <Action Name="ac02_Ping" Id="{2aecc23d-6273-4267-99d3-89d2413d383d}">
       <Implementation>
         <ST><![CDATA[(*============================================================================================*)
 (* 	Ping Bautsein, Checkt ob die Kommunikation vorhanden ist *)
@@ -856,7 +856,7 @@ fbRS485ComCheck(
 	]]></ST>
       </Implementation>
     </Action>
-    <Action Name="ac10_Counter" Id="{6a58da45-1209-4c68-8a58-7cca2b2db800}">
+    <Action Name="ac10_Counter" Id="{5db7fdcd-e46f-4b72-a847-673a2b720203}">
       <Implementation>
         <ST><![CDATA[(*============================================================================================*)
 (* 	Zähler *)
@@ -873,7 +873,7 @@ FOR j := 1 TO 6 BY 1 DO
 END_FOR]]></ST>
       </Implementation>
     </Action>
-    <Action Name="ac99_Doku" Id="{4cbd1a4a-aeef-4ec8-a22d-709892c4662d}">
+    <Action Name="ac99_Doku" Id="{9dea743c-1338-4f19-926b-3c2368da2e23}">
       <Implementation>
         <ST><![CDATA[(*======================================================================================================================================*)
 (*	DOKU	*)
@@ -1092,7 +1092,7 @@ END_FOR]]></ST>
 		]]></ST>
       </Implementation>
     </Action>
-    <LineIds Name="fb_TasterBus6F">
+    <LineIds Name="fb_TasterBus6F_1">
       <LineId Id="1341" Count="0" />
       <LineId Id="1340" Count="0" />
       <LineId Id="1329" Count="2" />
@@ -1216,7 +1216,7 @@ END_FOR]]></ST>
       <LineId Id="1239" Count="1" />
       <LineId Id="668" Count="0" />
     </LineIds>
-    <LineIds Name="fb_TasterBus6F.ac00_Event">
+    <LineIds Name="fb_TasterBus6F_1.ac00_Event">
       <LineId Id="140" Count="0" />
       <LineId Id="181" Count="0" />
       <LineId Id="183" Count="0" />
@@ -1228,7 +1228,7 @@ END_FOR]]></ST>
       <LineId Id="180" Count="0" />
       <LineId Id="1" Count="0" />
     </LineIds>
-    <LineIds Name="fb_TasterBus6F.ac01_SetLED">
+    <LineIds Name="fb_TasterBus6F_1.ac01_SetLED">
       <LineId Id="386" Count="1" />
       <LineId Id="71" Count="0" />
       <LineId Id="388" Count="0" />
@@ -1442,7 +1442,7 @@ END_FOR]]></ST>
       <LineId Id="155" Count="0" />
       <LineId Id="154" Count="0" />
     </LineIds>
-    <LineIds Name="fb_TasterBus6F.ac01_SetReset">
+    <LineIds Name="fb_TasterBus6F_1.ac01_SetReset">
       <LineId Id="301" Count="1" />
       <LineId Id="300" Count="0" />
       <LineId Id="71" Count="0" />
@@ -1543,7 +1543,7 @@ END_FOR]]></ST>
       <LineId Id="3" Count="0" />
       <LineId Id="173" Count="0" />
     </LineIds>
-    <LineIds Name="fb_TasterBus6F.ac02_Ping">
+    <LineIds Name="fb_TasterBus6F_1.ac02_Ping">
       <LineId Id="195" Count="1" />
       <LineId Id="194" Count="0" />
       <LineId Id="177" Count="0" />
@@ -1560,7 +1560,7 @@ END_FOR]]></ST>
       <LineId Id="201" Count="0" />
       <LineId Id="174" Count="1" />
     </LineIds>
-    <LineIds Name="fb_TasterBus6F.ac10_Counter">
+    <LineIds Name="fb_TasterBus6F_1.ac10_Counter">
       <LineId Id="16" Count="1" />
       <LineId Id="3" Count="0" />
       <LineId Id="2" Count="0" />
@@ -1573,7 +1573,7 @@ END_FOR]]></ST>
       <LineId Id="15" Count="0" />
       <LineId Id="5" Count="0" />
     </LineIds>
-    <LineIds Name="fb_TasterBus6F.ac99_Doku">
+    <LineIds Name="fb_TasterBus6F_1.ac99_Doku">
       <LineId Id="1" Count="1" />
       <LineId Id="12" Count="0" />
       <LineId Id="9" Count="1" />
