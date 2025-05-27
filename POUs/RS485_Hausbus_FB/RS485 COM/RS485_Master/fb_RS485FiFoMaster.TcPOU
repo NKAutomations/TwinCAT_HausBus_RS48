@@ -10,10 +10,14 @@ Date          	| Version    	| created under        	| Author          	| Remark
 (*10/05/2025   	| 1.01      		| TC3		  		| N.Kersting       | Nun wird der Empfang auch mit Implementiert  *)
 (*13/05/2025   	| 1.02      		| TC3		  		| N.Kersting       | Busbelastungstest Implementiert - Sendet Durchgehend Strings *)
 (*14/05/2025   	| 1.03      		| TC3		  		| N.Kersting       | Busauslastung direkt Implementiert *)
+(*27/05/2025   	| 1.04      		| TC3		  		| N.Kersting       | Neuen Manuell Mode implementiert um einen Manuell generierten String allein zu Senden *)
 (*====================================================================================================================================================*)
 FUNCTION_BLOCK fb_RS485FiFoMaster
 VAR_INPUT
 	I_sSendCmdFiFo				:ARRAY[1..cMaxRS485CMDFiFo] OF STRING(255);
+	I_bManuellMode				:BOOL := FALSE;
+	I_sSendCmdManuell			:STRING(255);
+	I_bSendManuell				:BOOL;
 	I_bExecute					:BOOL := TRUE;
 	I_bBusBelastungstest		:BOOL;
 	I_bReset					:BOOL;
@@ -33,6 +37,7 @@ VAR
 	bFirstCycle					:BOOL := TRUE;
 	tVerzReceive				:TIME := T#30MS;			(* Zeit, die zum Empfangen bleibt *)
 	
+	rTrigSendManuell			:r_Trig;
 	tonSend						:ton;
 	fbSend     					:SendString255;
 	fbReceive   				:ReceiveString255;
@@ -83,6 +88,9 @@ FOR i := 1 TO cMaxRS485CMDFiFo BY 1 DO
 	END_IF
 END_FOR
 
+rTrigSendManuell(
+	CLK := I_bSendManuell);
+
 (*============================================================================================*)
 CASE iStepFiFo OF
 -1:	sStep := 'FiFo INIT';
@@ -104,7 +112,8 @@ CASE iStepFiFo OF
 	tonVerzReceive.IN := (I_pTxBuffer^.Count<= INT_TO_UINT(iMaxBufferBlocking));
 	
 	IF (icntFiFo > 0
-		OR  bBusBelastungstest)
+		OR  bBusBelastungstest
+		OR I_bManuellMode)
 		AND NOT bFirstCycle
 		AND NOT fbReceive.StringReceived
 		AND tonVerzReceive.Q
@@ -119,53 +128,75 @@ CASE iStepFiFo OF
 	
 (*============================================================================================*)	
 1:	sStep := 'Prüfen ob STRING in FiFo Zeile gefüllt*';
-	sStringSend :=	I_sSendCmdFiFo[iFiFoRow]; 
 	
-	(* Prüfen ob in der ausgewählten Zeile etwas steht *)
-	IF I_sSendCmdFiFo[iFiFoRow] = ''
+	
+	(* Manueller Modus *)
+	IF I_bManuellMode
 	THEN
-		IF iFiFoRow < cMaxRS485CMDFiFo
+		(* Prüfen ob in der Zeile etwas steht *)
+		IF I_sSendCmdManuell <>''
+			AND rTrigSendManuell.Q
 		THEN
-			iFiFoRow := iFiFoRow+1; (* Nächste Zeile, bis etwas drin Steht *)
-		ELSE
-			IF bBusBelastungstest
+			IF NOT I_pTxBuffer^.blocked
+				AND (I_pTxBuffer^.Error=0)
+				AND NOT fbReceive.StringReceived
 			THEN
-				sStringSend :=	CONCAT(F_ToCHR(sStartZeichen),'ServiceTOOL-BUSBELASTUNGSTEST-BURSTFIREMODE');
-				sStringSend :=	CONCAT(sStringSend,F_ToCHR(sEndZeichen));
-				(* Senden *)
-				
-				IF NOT I_pTxBuffer^.blocked
-					AND (I_pTxBuffer^.Error=0)
-					AND NOT fbReceive.StringReceived
-				THEN
-					sStep := 'Prüfe ob Senden noch aktiv ist';
-					bStringSend := TRUE;
-					sString :=	sStringSend;
-					Q_bDone := FALSE;
-					Q_bError := FALSE;
-					iStepFiFo := iStepFiFo+1;
-				END_IF
-			ELSE
-				iStepFiFo := 0;	(* Alle Zeilen Abgearbeitet *)
+				sString :=	I_sSendCmdManuell; 
+				bStringSend := TRUE;
+				Q_bDone := FALSE;
+				Q_bError := FALSE;
+				iStepFiFo := iStepFiFo+1;
 			END_IF
-			
 		END_IF
 	ELSE
+		(* Prüfen ob in der ausgewählten Zeile etwas steht *)
+		sStringSend :=	I_sSendCmdFiFo[iFiFoRow]; 
+		IF I_sSendCmdFiFo[iFiFoRow] = ''
+		THEN
+			IF iFiFoRow < cMaxRS485CMDFiFo
+			THEN
+				iFiFoRow := iFiFoRow+1; (* Nächste Zeile, bis etwas drin Steht *)
+			ELSE
+				IF bBusBelastungstest
+				THEN
+					sStringSend :=	CONCAT(F_ToCHR(sStartZeichen),'ServiceTOOL-BUSBELASTUNGSTEST-BURSTFIREMODE');
+					sStringSend :=	CONCAT(sStringSend,F_ToCHR(sEndZeichen));
+					(* Senden *)
+					
+					IF NOT I_pTxBuffer^.blocked
+						AND (I_pTxBuffer^.Error=0)
+						AND NOT fbReceive.StringReceived
+					THEN
+						sStep := 'Prüfe ob Senden noch aktiv ist';
+						bStringSend := TRUE;
+						sString :=	sStringSend;
+						Q_bDone := FALSE;
+						Q_bError := FALSE;
+						iStepFiFo := iStepFiFo+1;
+					END_IF
+				ELSE
+					iStepFiFo := 0;	(* Alle Zeilen Abgearbeitet *)
+				END_IF
+			END_IF
+		ELSE
 		(* Senden *)
 		GVL_RS485FiFoSend.bSendDoneFiFo[iFiFoRow] :=FALSE;
 		
-		IF NOT I_pTxBuffer^.blocked
-			AND (I_pTxBuffer^.Error=0)
-			AND NOT fbReceive.StringReceived
-		THEN
-			sStep := 'Prüfe ob Senden noch aktiv ist';
-			bStringSend := TRUE;
-			sString :=	sStringSend;
-			Q_bDone := FALSE;
-			Q_bError := FALSE;
-			iStepFiFo := iStepFiFo+1;
+			IF NOT I_pTxBuffer^.blocked
+				AND (I_pTxBuffer^.Error=0)
+				AND NOT fbReceive.StringReceived
+			THEN
+				sStep := 'Prüfe ob Senden noch aktiv ist';
+				bStringSend := TRUE;
+				sString :=	sStringSend;
+				Q_bDone := FALSE;
+				Q_bError := FALSE;
+				iStepFiFo := iStepFiFo+1;
+			END_IF
 		END_IF
 	END_IF
+	
+	
 	
 (*============================================================================================*)		
 2:	sStep := 'Starte Senden';
@@ -307,7 +338,10 @@ fbBusAuslastung(
       <LineId Id="497" Count="0" />
       <LineId Id="495" Count="0" />
       <LineId Id="493" Count="0" />
+      <LineId Id="1073" Count="0" />
       <LineId Id="684" Count="0" />
+      <LineId Id="1074" Count="0" />
+      <LineId Id="1072" Count="0" />
       <LineId Id="503" Count="0" />
       <LineId Id="490" Count="0" />
       <LineId Id="711" Count="0" />
@@ -327,6 +361,7 @@ fbBusAuslastung(
       <LineId Id="821" Count="0" />
       <LineId Id="507" Count="0" />
       <LineId Id="857" Count="0" />
+      <LineId Id="1148" Count="0" />
       <LineId Id="705" Count="0" />
       <LineId Id="787" Count="0" />
       <LineId Id="822" Count="0" />
@@ -343,29 +378,29 @@ fbBusAuslastung(
       <LineId Id="541" Count="0" />
       <LineId Id="664" Count="0" />
       <LineId Id="685" Count="0" />
-      <LineId Id="528" Count="0" />
-      <LineId Id="532" Count="0" />
-      <LineId Id="537" Count="2" />
-      <LineId Id="542" Count="0" />
-      <LineId Id="834" Count="1" />
-      <LineId Id="853" Count="1" />
-      <LineId Id="840" Count="0" />
-      <LineId Id="842" Count="10" />
-      <LineId Id="839" Count="0" />
-      <LineId Id="837" Count="1" />
-      <LineId Id="836" Count="0" />
-      <LineId Id="543" Count="0" />
-      <LineId Id="536" Count="0" />
-      <LineId Id="534" Count="0" />
-      <LineId Id="686" Count="0" />
-      <LineId Id="567" Count="0" />
-      <LineId Id="629" Count="0" />
-      <LineId Id="614" Count="1" />
-      <LineId Id="788" Count="0" />
-      <LineId Id="616" Count="2" />
-      <LineId Id="722" Count="2" />
-      <LineId Id="619" Count="0" />
-      <LineId Id="540" Count="0" />
+      <LineId Id="1076" Count="0" />
+      <LineId Id="1080" Count="0" />
+      <LineId Id="1135" Count="0" />
+      <LineId Id="1083" Count="0" />
+      <LineId Id="1149" Count="0" />
+      <LineId Id="1084" Count="0" />
+      <LineId Id="1144" Count="1" />
+      <LineId Id="1143" Count="0" />
+      <LineId Id="1146" Count="0" />
+      <LineId Id="1136" Count="0" />
+      <LineId Id="1139" Count="0" />
+      <LineId Id="1141" Count="0" />
+      <LineId Id="1137" Count="0" />
+      <LineId Id="1086" Count="0" />
+      <LineId Id="1147" Count="0" />
+      <LineId Id="1085" Count="0" />
+      <LineId Id="1087" Count="1" />
+      <LineId Id="1133" Count="0" />
+      <LineId Id="1090" Count="25" />
+      <LineId Id="1117" Count="15" />
+      <LineId Id="1089" Count="0" />
+      <LineId Id="1078" Count="0" />
+      <LineId Id="1082" Count="0" />
       <LineId Id="530" Count="0" />
       <LineId Id="658" Count="0" />
       <LineId Id="529" Count="0" />

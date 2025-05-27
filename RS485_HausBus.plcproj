@@ -43,10 +43,10 @@
     <Compile Include="DUTs\HausBus\RelaisModul\ST_BusRelais16F_Output.TcDUT">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="DUTs\Service\ST_FiFoMaster_State.TcDUT">
+    <Compile Include="DUTs\HausBus\Service\ST_FiFoMaster_State.TcDUT">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="DUTs\Service\ST_RS485Startup_State.TcDUT">
+    <Compile Include="DUTs\HausBus\Service\ST_RS485Startup_State.TcDUT">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="GlobalTextList.TcGTLO">
@@ -162,7 +162,7 @@
     <Folder Include="DUTs\HausBus\BusTaster" />
     <Folder Include="DUTs\HausBus\CYD" />
     <Folder Include="DUTs\HausBus\RelaisModul" />
-    <Folder Include="DUTs\Service" />
+    <Folder Include="DUTs\HausBus\Service" />
     <Folder Include="GVLs" />
     <Folder Include="GVLs\RS485_HausBus" />
     <Folder Include="POUs\RS485_Hausbus_FB" />

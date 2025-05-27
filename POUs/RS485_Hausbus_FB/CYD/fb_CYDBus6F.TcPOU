@@ -31,6 +31,7 @@ Date          	| Version    	| created under        	| Author          	| Remark
 (*22/05/2025   	| 3.04      		| TC3		  		| N.Kersting       | ServiceFunktionen für CYD Hinzugefügt (Wifi und Webserver Starten)*)
 (*23/05/2025   	| 3.05      		| TC3		  		| N.Kersting       | Neue eigene Input Struktur für das CYD Implementiert*)
 (*23/05/2025   	| 3.06      		| TC3		  		| N.Kersting       | Auto - Input Fault Detection implementiert (Wenn Taster zu lange aktiviert bleibt ) *)
+(*26/05/2025   	| 3.07      		| TC3		  		| N.Kersting       | Updaten im Com Check Baustein, der Zyklische Ping vom CYD wird nun erkannt ) *)
 (*====================================================================================================================================================*)
 FUNCTION_BLOCK fb_CYDBus6F
 VAR_INPUT
@@ -1018,8 +1019,8 @@ fbRS485ComCheck(
 	I_tPingIntervall:= 		tPingTimer, 
 	I_tPingTimeout:= 		tReceiveTimeout, 
 	I_diID:= 				I_stInput.diID, 
-	I_sPingSymbol:= 		'.BTN.', 
-	I_iInstID:= 			17, 
+	I_sPingSymbol:= 		'.LBN.', 
+	I_iInstID:= 			16, 
 	I_sStartZeichen:= 		sStartZeichen, 
 	I_sEndZeichen:= 		sEndZeichen, 
 	I_iMaxPingTry :=		iMaxPingTry,	 

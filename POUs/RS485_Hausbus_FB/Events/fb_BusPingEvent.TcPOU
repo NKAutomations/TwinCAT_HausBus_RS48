@@ -18,7 +18,7 @@ VAR
 	findString2				:STRING ;
 	findString3				:STRING ;
 	findString4				:STRING ;
-	
+	findString5				:STRING ;	// Für CYD Ping
 END_VAR
 ]]></Declaration>
     <Implementation>
@@ -47,6 +47,9 @@ findString3 := CONCAT(findString3,'RHD.1.STATUS');
 (* Wenn Ein Helligkeit Event Kommt *)
 findString4 := CONCAT(I_sID,'.');
 findString4 := CONCAT(findString4,'BRS.1.STATUS');
+(* Wenn Ein Display Helligkeits Event Kommt für CYD *)
+findString5 := CONCAT(I_sID,'.');
+findString5 := CONCAT(findString5,'LBN.16.STATUS');
 
 IF I_bReset
 THEN
@@ -61,7 +64,8 @@ ELSE
 		AND I_bTasterMode)
 		OR (FIND(I_sReceivedString,findString4) >0 
 		AND I_bTasterMode)
-		
+		OR (FIND(I_sReceivedString,findString5) >0 
+		AND I_bTasterMode)
 	THEN
 		Q_bOut := TRUE;
 	ELSE
@@ -82,7 +86,9 @@ END_IF
       <LineId Id="227" Count="0" />
       <LineId Id="231" Count="1" />
       <LineId Id="230" Count="0" />
+      <LineId Id="253" Count="1" />
       <LineId Id="233" Count="0" />
+      <LineId Id="255" Count="0" />
       <LineId Id="86" Count="0" />
       <LineId Id="172" Count="0" />
       <LineId Id="174" Count="1" />
@@ -90,6 +96,7 @@ END_IF
       <LineId Id="204" Count="0" />
       <LineId Id="206" Count="0" />
       <LineId Id="215" Count="6" />
+      <LineId Id="256" Count="0" />
       <LineId Id="178" Count="3" />
       <LineId Id="176" Count="0" />
       <LineId Id="173" Count="0" />

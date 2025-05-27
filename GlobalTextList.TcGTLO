@@ -237,6 +237,11 @@ Beleuchtung"</v>
               <l n="LanguageTexts" t="ArrayList" />
             </o>
             <o>
+              <v n="TextID">"192"</v>
+              <v n="TextDefault">"Manuell"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
               <v n="TextID">"356"</v>
               <v n="TextDefault">"R1"</v>
               <l n="LanguageTexts" t="ArrayList" />
@@ -339,6 +344,11 @@ Beleuchtung"</v>
             <o>
               <v n="TextID">"289"</v>
               <v n="TextDefault">"RX: %s"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"743"</v>
+              <v n="TextDefault">"Senden"</v>
               <l n="LanguageTexts" t="ArrayList" />
             </o>
             <o>

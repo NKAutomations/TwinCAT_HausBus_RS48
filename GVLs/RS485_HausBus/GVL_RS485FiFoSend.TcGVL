@@ -3,8 +3,8 @@
   <GVL Name="GVL_RS485FiFoSend" Id="{8564bc8f-e893-47d7-8bf8-1cb12d584f70}">
     <Declaration><![CDATA[{attribute 'Tc2GvlVarNames'}
 VAR_GLOBAL
-	bSendDoneFiFo	:ARRAY[1..cMaxRS485CMDFiFo] OF BOOL;			(* Rückmeldung Aus dem FiFo Master Baustein, dass der Sendevorgang abgeschlossen ist *)
-	sSendFiFo		:ARRAY[1..cMaxRS485CMDFiFo] OF STRING(255);		(* Zeile für den FiFo Master Baustein, von jedem einzelnen Busteilnehmer *)
+	bSendDoneFiFo			:ARRAY[1..cMaxRS485CMDFiFo] OF BOOL;			(* Rückmeldung Aus dem FiFo Master Baustein, dass der Sendevorgang abgeschlossen ist *)
+	sSendFiFo				:ARRAY[1..cMaxRS485CMDFiFo] OF STRING(255);		(* Zeile für den FiFo Master Baustein, von jedem einzelnen Busteilnehmer *)
 END_VAR]]></Declaration>
   </GVL>
 </TcPlcObject>

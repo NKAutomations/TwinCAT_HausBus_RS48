@@ -71,7 +71,7 @@
 		</System>
 		<Plc>
 			<Project GUID="{B5DF68DD-93BD-4F54-AFC9-3AA000FD7B3F}" Name="RS485_HausBus" PrjFilePath="RS485_HausBus\RS485_HausBus.plcproj" TmcFilePath="RS485_HausBus\RS485_HausBus.tmc" ReloadTmc="true" AmsPort="851" FileArchiveSettings="#x000e" SymbolicMapping="true">
-				<Instance Id="#x08502000" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcPath="RS485_HausBus\RS485_HausBus.tmc" TmcHash="{07EF9B61-99CC-DC5C-10C2-9AFA8C507D3E}">
+				<Instance Id="#x08502000" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcPath="RS485_HausBus\RS485_HausBus.tmc" TmcHash="{553CDE24-C704-5F53-47EC-208580D1EFB6}">
 					<Name>RS485_HausBus Instance</Name>
 					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
 					<Vars VarGrpType="1">

@@ -109,19 +109,24 @@ THEN
 	(* CYD *)
 	ac10_HausBusCYDRS485COM();
 	
-	(* Senden FiFo *)
+	(* Senden FiFo *)		
 	fbRS485SendCmdFiFo(
 		I_sSendCmdFiFo:= 		GVL_RS485FiFoSend.sSendFiFo, 
+		I_bManuellMode:= , 
+		I_sSendCmdManuell:= , 
+		I_bSendManuell:= , 
 		I_bExecute:= 			TRUE, 
-		I_bBusBelastungstest := ,
+		I_bBusBelastungstest:= , 
 		I_bReset:= , 
 		I_pTxBuffer:= 			ADR(txBuffer), 
 		I_pRxBuffer:= 			ADR(rxBuffer), 
-		Q_lrBusAuslastung=>		,
+		Q_sReceiveString=> , 
+		Q_lrBusAuslastung=> , 
 		Q_bBusy=> , 
 		Q_bDone=> , 
 		Q_bError=> , 
-		Q_sState=> );
+		Q_sState=> , 
+		Q_stStates=> );
 	
 ELSE
 	(* Com Buffer zum Resetten *)
@@ -245,12 +250,12 @@ END_FOR]]></ST>
       <LineId Id="360" Count="7" />
       <LineId Id="379" Count="3" />
       <LineId Id="420" Count="1" />
-      <LineId Id="383" Count="4" />
-      <LineId Id="417" Count="0" />
-      <LineId Id="388" Count="2" />
-      <LineId Id="418" Count="0" />
-      <LineId Id="391" Count="2" />
-      <LineId Id="259" Count="0" />
+      <LineId Id="383" Count="0" />
+      <LineId Id="422" Count="0" />
+      <LineId Id="425" Count="8" />
+      <LineId Id="441" Count="0" />
+      <LineId Id="435" Count="5" />
+      <LineId Id="424" Count="0" />
       <LineId Id="265" Count="0" />
       <LineId Id="410" Count="0" />
       <LineId Id="419" Count="0" />

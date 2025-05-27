@@ -5,16 +5,16 @@
 VAR_GLOBAL
 	
 	(* Ping *)
-	bUseTasterPing				:BOOL := FALSE;			(* Schaltet den Dauerping für die Taster ein *)	(* Wird noch nicht verwendet, da es nicht so zuverlässig Funktioniert *)
-	bUseRelaisPing				:BOOL := FALSE;			(* Schaltet den Dauerping für die Relais ein *)	(* Wird noch nicht verwendet, da es nicht so zuverlässig Funktioniert *)
+	bUseTasterPing						:BOOL := FALSE;			(* Schaltet den Dauerping für die Taster ein *)	(* Wird noch nicht verwendet, da es nicht so zuverlässig Funktioniert *)
+	bUseRelaisPing						:BOOL := FALSE;			(* Schaltet den Dauerping für die Relais ein *)	(* Wird noch nicht verwendet, da es nicht so zuverlässig Funktioniert *)
 	
-	cTimePingTimeRelais			:TIME := T#10S;			(* Ping Intervallzeit *)
-	cTimeReceiveTimeoutRelais	:TIME := T#200MS;		(* Ping Empfangs Timeout *)
+	cTimePingTimeRelais					:TIME := T#10S;			(* Ping Intervallzeit *)
+	cTimeReceiveTimeoutRelais			:TIME := T#200MS;		(* Ping Empfangs Timeout *)
 	
-	cTimePingTimeTaster			:TIME := T#5M;			(* Ping Intervallzeit *)	(* Vorerst auf 5min gestellt, da die Taster Automatisch senden (Helligkeit/Luftfeuchtigkeit/Temp usw. *)
-	cTimeReceiveTimeoutTaster	:TIME := T#200MS;		(* Ping Empfangs Timeout *)
+	cTimePingTimeTaster					:TIME := T#5M;			(* Ping Intervallzeit *)	(* Vorerst auf 5min gestellt, da die Taster Automatisch senden (Helligkeit/Luftfeuchtigkeit/Temp usw. *)
+	cTimeReceiveTimeoutTaster			:TIME := T#200MS;		(* Ping Empfangs Timeout *)
 	
-	cMaxPingTry					:INT :=	5;				(* Anzahl der Pingversuche *)
+	cMaxPingTry							:INT :=	5;				(* Anzahl der Pingversuche *)
 	
 END_VAR]]></Declaration>
   </GVL>
