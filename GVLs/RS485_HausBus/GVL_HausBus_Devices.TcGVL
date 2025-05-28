@@ -3,6 +3,7 @@
   <GVL Name="GVL_HausBus_Devices" Id="{312f039f-d6c7-4f35-aa6e-f27a17207420}">
     <Declaration><![CDATA[{attribute 'Tc2GvlVarNames'}
 VAR_GLOBAL
+	stHBDeviceIdent					:ARRAY[1..cMaxRS485CMDFiFo] OF ST_HausBus_Ident;
 	fbTasterHB6F 					:ARRAY[1..cMaxBusTaster] OF fb_TasterBus6F;	
 	fbRelaisHB16F					:ARRAY[cMaxBusTaster+1..cMaxBusRelais+cMaxBusTaster+1] OF fb_RelaisBus16F;
 	fbCYDHB6F 						:ARRAY[cMaxBusRelais+cMaxBusTaster+2..cMaxBusRelais+cMaxBusTaster+cMaxCYD+1] OF fb_CYDBus6F;	

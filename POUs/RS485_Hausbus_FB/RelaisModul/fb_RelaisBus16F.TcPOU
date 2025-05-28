@@ -13,6 +13,7 @@ Date          	| Version    	| created under        	| Author          	| Remark
 (*10/05/2025   	| 2.00      		| TC3		  		| N.Kersting      	| Umstellung auf Externe FiFo Sendebaustein *)
 (*12/05/2025   	| 2.01      		| TC3		  		| N.Kersting      	| Verriegelung für ComCheck hinzugefügt und Relais Sections auf 2 redzuziert *)
 (*13/05/2025   	| 3.00      		| TC3		  		| N.Kersting       	| Viele Bugs gefixt, bei Änderung der Ausgängen wird nun eine Anforderung gesetzt  *)
+(*28/05/2025   	| 3.01      		| TC3		  		| N.Kersting        | Neuen Einfachen Ping Baustein, welcher nicht sendet, nur auswertet implementiert *)
 (*====================================================================================================================================================*)
 FUNCTION_BLOCK fb_RelaisBus16F
 VAR_INPUT
@@ -56,7 +57,7 @@ VAR
 (*----------------------------------------------*)
 	fbBusTasterEvent	:ARRAY[1..8] OF fb_BusTasterEvent;		(* Interne 8 Taster Abfragen *)
 	fbStringConvR1B6F	:fb_StringConvRB16F;
-	fbRS485ComCheck		:fb_RS485ComCheck;
+	fbPing				:fb_RS485Ping;
 (*----------------------------------------------*)
 (* Indexe *)
 (*----------------------------------------------*)	
@@ -102,7 +103,6 @@ VAR
 	bStartUpCheckPing		:BOOL;
 	bActivateSend			:BOOL;
 	bReadyToPing			:BOOL;
-	bPingFreigabe			:BOOL;
 	bSendeAnforderung		:BOOL;
 END_VAR]]></Declaration>
     <Implementation>
@@ -149,7 +149,6 @@ CASE iDeviceStartup OF
 	bStartUpCheckPing := FALSE;
 	bActivateSend := FALSE;
 	bReadyToPing := TRUE;
-	bPingFreigabe := FALSE;
 	
 	iStepSet := 0;
 	
@@ -168,17 +167,16 @@ CASE iDeviceStartup OF
 	END_IF
 (*============================================================================================*)
 2: 	sDeviceStartup := 'Verbindung Prüfen';
-	bStartUpCheckPing := TRUE;
-	bPingFreigabe := TRUE;
 	bActivateSend := TRUE;	(* Senden Aktivieren *)
-	
+	iDeviceStartup := iDeviceStartup+1;
+	(*
 	sDeviceStartup := CONCAT(sDeviceStartup,fbRS485ComCheck.Q_sState);
 	
 	IF fbRS485ComCheck.Q_bComOk
 		OR NOT bCheckPing
 	THEN
 		iDeviceStartup := iDeviceStartup+1;
-	END_IF
+	END_IF*)
 
 (*============================================================================================*)
 3: 	sDeviceStartup := 'Reset Ausführen';	
@@ -231,12 +229,7 @@ END_CASE
 (* Sendebaustein *)
 IF bActivateSend
 THEN
-	IF fbRS485ComCheck.Q_sSend <>''
-	THEN
-		Q_sFiFoSend :=	fbRS485ComCheck.Q_sSend;
-	ELSE
-		Q_sFiFoSend :=	sFiFoSend;
-	END_IF
+	Q_sFiFoSend :=	sFiFoSend;
 END_IF
 
 (*============================================================================================*)	
@@ -297,7 +290,6 @@ CASE iStepSet OF
 (*============================================================================================*)
 0:	(* INIT und warten auf Change *)
 	tonStepStartup.IN := FALSE;
-	bPingFreigabe := TRUE; 
 	iSection := 1;
 	
 	(* Merken ob eine Anforderung Ansteht *)
@@ -312,10 +304,8 @@ CASE iStepSet OF
 	IF (bSendeAnforderung
 		AND bSetExecute)
 		AND NOT bStartupStart
-		AND fbRS485ComCheck.Q_sSend =''
 	THEN
 		bSendeAnforderung := FALSE;
-		bPingFreigabe := FALSE; 
 		(* Angeforderten Relaiszustand speichern *)
 		FOR h := 1 TO 16 BY 1 DO
 			ibOutMem[h] := I_stInput.bOut[h];
@@ -596,9 +586,9 @@ CASE iStepSet OF
 (*============================================================================================*)	
 4:	sStateReset := 'Warte auf Ping vom Gerät';	
 	tonResetTimeout.IN := TRUE;
+	bStartUpCheckPing := TRUE;
 	
 	IF bPingOK 
-		OR NOT bCheckPing
 	THEN
 		bErrorReset := FALSE;
 		tonResetTimeout.IN := FALSE;
@@ -644,26 +634,21 @@ END_CASE]]></ST>
         <ST><![CDATA[(*============================================================================================*)
 (* 	Ping Bautsein, Checkt ob die Kommunikation vorhanden ist *)
 (*============================================================================================*)
-fbRS485ComCheck(
-	I_FifoID:=				I_FifoID,
-	I_bExecute:= 			bCheckPing
-							AND bStartUpCheckPing
-							(*AND bReadyToPing*), 
-	I_bStart :=				I_bPingStart
-							AND bPingFreigabe,
-	I_bTasterMode:=			FALSE,
-	I_StringReceived:=		I_StringReceived,
-	I_tPingIntervall:= 		tPingTimer, 
-	I_tPingTimeout:= 		tReceiveTimeout, 
+fbPing(
+	I_bExecute:= 			bStartUpCheckPing, 
+	I_bAutoPing:= 			bCheckPing, 
+	I_bAutoReset:= 			bCheckPing, 
+	I_bReset:= 				r_TrigReset.Q
+							OR NOT bStartUpCheckPing, 
+	I_tPingTimeout:= 		tPingTimer, 
 	I_diID:= 				I_stInput.diID, 
-	I_sPingSymbol:= 		'.BTN.', 
-	I_iInstID:= 			97, 
 	I_sStartZeichen:= 		sStartZeichen, 
 	I_sEndZeichen:= 		sEndZeichen, 
-	I_iMaxPingTry :=		iMaxPingTry,	 
+	I_StringReceived:= 		I_StringReceived, 
+	Q_sState=> , 
 	Q_bComOk=> 				bPingOK, 
-	Q_bError=> 				bErrorPing,
-	Q_bSendDone=>			(*Q_bPingDone*));
+	Q_bTimeout=> 			bErrorPing);
+	
 	
 	
 	]]></ST>
@@ -903,15 +888,16 @@ END_FOR]]></ST>
       <LineId Id="424" Count="0" />
       <LineId Id="418" Count="2" />
       <LineId Id="269" Count="37" />
-      <LineId Id="542" Count="1" />
-      <LineId Id="307" Count="17" />
-      <LineId Id="544" Count="0" />
+      <LineId Id="543" Count="0" />
+      <LineId Id="307" Count="16" />
       <LineId Id="325" Count="0" />
+      <LineId Id="649" Count="0" />
       <LineId Id="540" Count="0" />
       <LineId Id="326" Count="50" />
       <LineId Id="538" Count="0" />
       <LineId Id="384" Count="3" />
-      <LineId Id="529" Count="8" />
+      <LineId Id="529" Count="1" />
+      <LineId Id="535" Count="1" />
       <LineId Id="395" Count="13" />
       <LineId Id="429" Count="0" />
       <LineId Id="409" Count="3" />
@@ -938,7 +924,6 @@ END_FOR]]></ST>
       <LineId Id="1" Count="1" />
       <LineId Id="7" Count="0" />
       <LineId Id="92" Count="0" />
-      <LineId Id="812" Count="0" />
       <LineId Id="845" Count="0" />
       <LineId Id="94" Count="0" />
       <LineId Id="874" Count="0" />
@@ -952,10 +937,8 @@ END_FOR]]></ST>
       <LineId Id="95" Count="0" />
       <LineId Id="99" Count="0" />
       <LineId Id="345" Count="0" />
-      <LineId Id="727" Count="0" />
       <LineId Id="96" Count="0" />
       <LineId Id="869" Count="0" />
-      <LineId Id="814" Count="0" />
       <LineId Id="871" Count="2" />
       <LineId Id="870" Count="0" />
       <LineId Id="98" Count="0" />
@@ -1119,9 +1102,9 @@ END_FOR]]></ST>
       <LineId Id="116" Count="0" />
       <LineId Id="104" Count="0" />
       <LineId Id="117" Count="0" />
-      <LineId Id="123" Count="1" />
-      <LineId Id="303" Count="0" />
-      <LineId Id="125" Count="0" />
+      <LineId Id="123" Count="0" />
+      <LineId Id="350" Count="0" />
+      <LineId Id="124" Count="1" />
       <LineId Id="190" Count="0" />
       <LineId Id="170" Count="0" />
       <LineId Id="127" Count="0" />
@@ -1152,18 +1135,7 @@ END_FOR]]></ST>
     <LineIds Name="fb_RelaisBus16F.ac02_Ping">
       <LineId Id="195" Count="1" />
       <LineId Id="194" Count="0" />
-      <LineId Id="177" Count="0" />
-      <LineId Id="206" Count="0" />
-      <LineId Id="178" Count="0" />
-      <LineId Id="197" Count="1" />
-      <LineId Id="200" Count="0" />
-      <LineId Id="207" Count="0" />
-      <LineId Id="205" Count="0" />
-      <LineId Id="192" Count="0" />
-      <LineId Id="179" Count="6" />
-      <LineId Id="199" Count="0" />
-      <LineId Id="190" Count="0" />
-      <LineId Id="153" Count="0" />
+      <LineId Id="209" Count="13" />
       <LineId Id="201" Count="0" />
       <LineId Id="204" Count="0" />
       <LineId Id="174" Count="1" />

@@ -49,6 +49,9 @@
     <Compile Include="DUTs\HausBus\Service\ST_RS485Startup_State.TcDUT">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="DUTs\HausBus\ST_HausBus_Ident.TcDUT">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="GlobalTextList.TcGTLO">
       <SubType>Code</SubType>
     </Compile>
@@ -96,6 +99,9 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="POUs\RS485_Hausbus_FB\RS485 COM\fb_RS485ComCheck.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="POUs\RS485_Hausbus_FB\RS485 COM\fb_RS485Ping.TcPOU">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="POUs\RS485_Hausbus_FB\RS485 COM\RS485_Master\fb_RS485FiFoMaster.TcPOU">

@@ -11,18 +11,26 @@ Date          	| Version    	| created under        	| Author          	| Remark
 (*13/05/2025   	| 1.02      		| TC3		  		| N.Kersting       | Busbelastungstest Implementiert - Sendet Durchgehend Strings *)
 (*14/05/2025   	| 1.03      		| TC3		  		| N.Kersting       | Busauslastung direkt Implementiert *)
 (*27/05/2025   	| 1.04      		| TC3		  		| N.Kersting       | Neuen Manuell Mode implementiert um einen Manuell generierten String allein zu Senden *)
+(*28/05/2025   	| 1.05      		| TC3		  		| N.Kersting       | Neue Automatisch Ping Funktion hinzugefügt & Wichtiger Bugfix *)
 (*====================================================================================================================================================*)
 FUNCTION_BLOCK fb_RS485FiFoMaster
 VAR_INPUT
 	I_sSendCmdFiFo				:ARRAY[1..cMaxRS485CMDFiFo] OF STRING(255);
+	I_stDeviceIdent				:ARRAY[1..cMaxRS485CMDFiFo] OF ST_HausBus_Ident;	(* Um Zyklisch einzelnt anzupingen *)
+	
+	I_bAutoPing					:BOOL;												(* Wenn Aktiv wird Zyklisch Automatisch ein Ping gesendet, welcher von den einzelnen Kommunikationsbausteinen ausgewertet werden kann *)
+	I_tAutoPingTime				:TIME :=T#10S;										(* Die Intervallzeit, Bis ein Auto Ping gesendet wird *)
+	
 	I_bManuellMode				:BOOL := FALSE;
 	I_sSendCmdManuell			:STRING(255);
 	I_bSendManuell				:BOOL;
 	I_bExecute					:BOOL := TRUE;
 	I_bBusBelastungstest		:BOOL;
 	I_bReset					:BOOL;
-	I_pTxBuffer					:POINTER TO ComBuffer;  (*Zeiger auf TX-Buffer*)
-	I_pRxBuffer   				:POINTER TO ComBuffer;  (*Zeiger auf RX-Buffer*)
+	I_sStartZeichen				:BYTE := 16#FD;										(* Startzeichen Präfix *)
+	I_sEndZeichen				:BYTE := 16#FE;										(* Endzeichen Suffix *)
+	I_pTxBuffer					:POINTER TO ComBuffer; 								(* Zeiger auf TX-Buffer*)
+	I_pRxBuffer   				:POINTER TO ComBuffer;  							(* Zeiger auf RX-Buffer*)
 END_VAR
 VAR_OUTPUT
 	Q_sReceiveString			:STRING(255);		
@@ -35,14 +43,14 @@ VAR_OUTPUT
 END_VAR
 VAR
 	bFirstCycle					:BOOL := TRUE;
-	tVerzReceive				:TIME := T#30MS;			(* Zeit, die zum Empfangen bleibt *)
+	tVerzReceive				:TIME := T#30MS;									(* Zeit, die zum Empfangen bleibt *)
 	
 	rTrigSendManuell			:r_Trig;
 	tonSend						:ton;
 	fbSend     					:SendString255;
 	fbReceive   				:ReceiveString255;
-	sStartZeichen				:BYTE := 16#FD;				(* Startzeichen Präfix *)
-	sEndZeichen					:BYTE := 16#FE;				(* Endzeichen Suffix *)
+	sStartZeichen				:BYTE := 16#FD;										(* Startzeichen Präfix *)
+	sEndZeichen					:BYTE := 16#FE;										(* Endzeichen Suffix *)
 	sReceivedMEMString			:STRING(255);
 	sReceivedString				:STRING(255);
 	iStep						:INT;
@@ -54,6 +62,8 @@ VAR
 	sStringSend					:STRING(255);
 	tonVerzReceive				:ton;	
 	tonTimeout					:ton;
+	tonPingIntervall			:ton;
+	
 	bStringSend					:BOOL := FALSE;
 	icntError					:INT;
 	
@@ -61,6 +71,8 @@ VAR
 	icntFiFo					:INT;
 	i,h							:INT;
 	iStepFiFo					:INT;
+	
+	bPingStart					:BOOL;
 	
 	bBusBelastungstest			:BOOL := FALSE;
 	bBusAuslastung				:BOOL := TRUE;
@@ -73,8 +85,13 @@ tonTimeout(
 	PT:=T#1S);
 	
 tonVerzReceive(
-	pt := tVerzReceive);
+	PT := tVerzReceive);
 
+tonPingIntervall(
+	IN := I_bAutoPing
+			AND NOT bPingStart,
+	PT := I_tAutoPingTime);
+	
 (* Busbelastungstest *)	
 bBusBelastungstest := I_bBusBelastungstest;
 
@@ -96,6 +113,7 @@ CASE iStepFiFo OF
 -1:	sStep := 'FiFo INIT';
 	bFirstCycle := FALSE;
 	Q_bBusy := FALSE;
+	bPingStart := FALSE;
 	iFiFoRow := 1;
 	
 	FOR h := 1 TO cMaxRS485CMDFiFo BY 1 DO
@@ -109,13 +127,21 @@ CASE iStepFiFo OF
 	iFiFoRow := 1;
 	bStringSend := FALSE;
 	Q_bBusy := FALSE;
+		
 	tonVerzReceive.IN := (I_pTxBuffer^.Count<= INT_TO_UINT(iMaxBufferBlocking));
+	
+	(* Wenn die Intervall Zeit abgelaufen ist Ping Start setzen *)
+	IF tonPingIntervall.Q
+	THEN
+		bPingStart := TRUE;
+	END_IF
 	
 	IF (icntFiFo > 0
 		OR  bBusBelastungstest
 		OR I_bManuellMode)
 		AND NOT bFirstCycle
 		AND NOT fbReceive.StringReceived
+		AND NOT bPingStart
 		AND tonVerzReceive.Q
 	THEN
 		Q_bBusy := TRUE;
@@ -124,11 +150,17 @@ CASE iStepFiFo OF
 		bFirstCycle
 	THEN
 		iStepFiFo := -1;
+	ELSIF
+		bPingStart
+		AND NOT bFirstCycle
+		AND NOT fbReceive.StringReceived
+		AND tonVerzReceive.Q
+	THEN
+		iStepFiFo := 10;	(* Ping senden *)
 	END_IF
 	
 (*============================================================================================*)	
 1:	sStep := 'Prüfen ob STRING in FiFo Zeile gefüllt*';
-	
 	
 	(* Manueller Modus *)
 	IF I_bManuellMode
@@ -196,8 +228,6 @@ CASE iStepFiFo OF
 		END_IF
 	END_IF
 	
-	
-	
 (*============================================================================================*)		
 2:	sStep := 'Starte Senden';
 	Q_bBusy := TRUE;
@@ -223,11 +253,12 @@ CASE iStepFiFo OF
 		sStep := CONCAT('ERROR- Timeout',sStep);
 		iStepFiFo := -2;
 	END_IF
-
+	
+(*============================================================================================*)		
 3:	(* Senden*)		
 	GVL_RS485FiFoSend.bSendDoneFiFo[iFiFoRow] :=TRUE;
 	
-	IF iFiFoRow < iFiFoRow
+	IF iFiFoRow < cMaxRS485CMDFiFo
 	THEN
 		iFiFoRow := iFiFoRow+1;
 		iStepFiFo := 1;
@@ -235,7 +266,81 @@ CASE iStepFiFo OF
 		Q_bDone := TRUE;
 		iStepFiFo := 0;
 	END_IF
+	
+(*============================================================================================*)	
+(* Ping Senden Ablauf *)
+(*============================================================================================*)	
+10:	sStep := 'Sende Ping*';
+	
+	(* Ping String erstellen *)
+	sStringSend:=	CONCAT(F_ToCHR(I_sStartZeichen),DINT_TO_STRING(I_stDeviceIdent[iFiFoRow].diID));
+	sStringSend :=	CONCAT(sStringSend,'.');
+	sStringSend :=	CONCAT(sStringSend ,I_stDeviceIdent[iFiFoRow].sPingIdent); 
+	sStringSend :=	CONCAT(sStringSend,F_ToCHR(I_sEndZeichen));
+	
+	IF I_stDeviceIdent[iFiFoRow].sPingIdent = ''
+		OR I_stDeviceIdent[iFiFoRow].diID = 0
+	THEN
+		IF iFiFoRow < cMaxRS485CMDFiFo
+		THEN
+			iFiFoRow := iFiFoRow+1; (* Nächste Zeile, bis etwas drin Steht *)
+		ELSE
+			bPingStart := FALSE;
+			iStepFiFo := 0;	(* Alle Zeilen Abgearbeitet *)
+		END_IF
+	ELSE
+	(* Senden *)	
+		IF NOT I_pTxBuffer^.blocked
+			AND (I_pTxBuffer^.Error=0)
+			AND NOT fbReceive.StringReceived
+		THEN
+			sStep := 'Prüfe ob Senden noch aktiv ist';
+			bStringSend := TRUE;
+			sString :=	sStringSend;
+			Q_bDone := FALSE;
+			Q_bError := FALSE;
+			iStepFiFo := iStepFiFo+1;
+		END_IF
+	END_IF
+	
+(*============================================================================================*)		
+11:	sStep := 'Starte Senden';
+	Q_bBusy := TRUE;
+	tonTimeout.IN := fbSend.Busy;
+	
+	IF NOT fbSend.Busy
+		AND NOT fbReceive.StringReceived
+	THEN
+		tonSend.IN := FALSE;
+		bStringSend := FALSE;
+		iStepFiFo := iStepFiFo+1;
+	ELSIF
+		(fbSend.Error >0)
+		AND NOT (fbSend.Error = 2)
+	THEN
+		sStep := CONCAT('ERROR-',sStep);
+		sStep := CONCAT(sStep,'- ');
+		sStep := CONCAT(sStep,INT_TO_STRING(fbSend.Error));
+		iStepFiFo := -2;
+	ELSIF
+		tonTimeout.Q
+	THEN
+		sStep := CONCAT('ERROR- Timeout',sStep);
+		iStepFiFo := -2;
+	END_IF
+	
+(*============================================================================================*)		
+12:	(* Senden*)		
 
+	IF iFiFoRow < cMaxRS485CMDFiFo
+	THEN
+		iFiFoRow := iFiFoRow+1;
+		iStepFiFo := 10;
+	ELSE
+		bPingStart := FALSE;
+		iStepFiFo := 0;
+	END_IF
+	
 ELSE
 (*============================================================================================*)
 	Q_bError := TRUE;
@@ -326,7 +431,11 @@ fbBusAuslastung(
       <LineId Id="812" Count="0" />
       <LineId Id="807" Count="0" />
       <LineId Id="809" Count="0" />
+      <LineId Id="1223" Count="0" />
       <LineId Id="861" Count="0" />
+      <LineId Id="1239" Count="0" />
+      <LineId Id="1398" Count="0" />
+      <LineId Id="1224" Count="1" />
       <LineId Id="811" Count="0" />
       <LineId Id="859" Count="1" />
       <LineId Id="683" Count="0" />
@@ -347,6 +456,7 @@ fbBusAuslastung(
       <LineId Id="711" Count="0" />
       <LineId Id="718" Count="0" />
       <LineId Id="926" Count="0" />
+      <LineId Id="1229" Count="0" />
       <LineId Id="719" Count="1" />
       <LineId Id="715" Count="2" />
       <LineId Id="726" Count="0" />
@@ -357,13 +467,20 @@ fbBusAuslastung(
       <LineId Id="513" Count="0" />
       <LineId Id="518" Count="0" />
       <LineId Id="927" Count="0" />
+      <LineId Id="1234" Count="0" />
       <LineId Id="687" Count="0" />
+      <LineId Id="1393" Count="0" />
+      <LineId Id="1399" Count="0" />
+      <LineId Id="1394" Count="1" />
+      <LineId Id="1397" Count="0" />
+      <LineId Id="1396" Count="0" />
       <LineId Id="821" Count="0" />
       <LineId Id="507" Count="0" />
       <LineId Id="857" Count="0" />
       <LineId Id="1148" Count="0" />
       <LineId Id="705" Count="0" />
       <LineId Id="787" Count="0" />
+      <LineId Id="1238" Count="0" />
       <LineId Id="822" Count="0" />
       <LineId Id="509" Count="0" />
       <LineId Id="928" Count="0" />
@@ -371,12 +488,15 @@ fbBusAuslastung(
       <LineId Id="706" Count="0" />
       <LineId Id="708" Count="1" />
       <LineId Id="707" Count="0" />
+      <LineId Id="1240" Count="2" />
+      <LineId Id="1484" Count="0" />
+      <LineId Id="1483" Count="0" />
+      <LineId Id="1243" Count="1" />
       <LineId Id="506" Count="0" />
       <LineId Id="659" Count="0" />
       <LineId Id="510" Count="0" />
       <LineId Id="514" Count="0" />
       <LineId Id="541" Count="0" />
-      <LineId Id="664" Count="0" />
       <LineId Id="685" Count="0" />
       <LineId Id="1076" Count="0" />
       <LineId Id="1080" Count="0" />
@@ -399,8 +519,6 @@ fbBusAuslastung(
       <LineId Id="1090" Count="25" />
       <LineId Id="1117" Count="15" />
       <LineId Id="1089" Count="0" />
-      <LineId Id="1078" Count="0" />
-      <LineId Id="1082" Count="0" />
       <LineId Id="530" Count="0" />
       <LineId Id="658" Count="0" />
       <LineId Id="529" Count="0" />
@@ -409,13 +527,18 @@ fbBusAuslastung(
       <LineId Id="789" Count="0" />
       <LineId Id="641" Count="16" />
       <LineId Id="547" Count="0" />
-      <LineId Id="552" Count="0" />
+      <LineId Id="1347" Count="0" />
+      <LineId Id="1313" Count="0" />
       <LineId Id="511" Count="0" />
       <LineId Id="666" Count="0" />
       <LineId Id="668" Count="5" />
       <LineId Id="931" Count="0" />
       <LineId Id="674" Count="0" />
       <LineId Id="553" Count="0" />
+      <LineId Id="1480" Count="0" />
+      <LineId Id="1407" Count="0" />
+      <LineId Id="1479" Count="0" />
+      <LineId Id="1408" Count="70" />
       <LineId Id="688" Count="0" />
       <LineId Id="554" Count="0" />
       <LineId Id="690" Count="1" />

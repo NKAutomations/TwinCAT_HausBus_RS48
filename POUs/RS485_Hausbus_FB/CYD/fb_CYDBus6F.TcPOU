@@ -32,6 +32,7 @@ Date          	| Version    	| created under        	| Author          	| Remark
 (*23/05/2025   	| 3.05      		| TC3		  		| N.Kersting       | Neue eigene Input Struktur für das CYD Implementiert*)
 (*23/05/2025   	| 3.06      		| TC3		  		| N.Kersting       | Auto - Input Fault Detection implementiert (Wenn Taster zu lange aktiviert bleibt ) *)
 (*26/05/2025   	| 3.07      		| TC3		  		| N.Kersting       | Updaten im Com Check Baustein, der Zyklische Ping vom CYD wird nun erkannt ) *)
+(*28/05/2025   	| 3.08      		| TC3		  		| N.Kersting       | Neuen Einfachen Ping Baustein, welcher nicht sendet, nur auswertet implementiert *)
 (*====================================================================================================================================================*)
 FUNCTION_BLOCK fb_CYDBus6F
 VAR_INPUT
@@ -57,7 +58,7 @@ VAR
 	tPingTimer			:TIME:= T#5S;				(* Zeit, bis wiederholend der Ping versendet wird *)
 	tReceiveTimeout		:TIME:= T#2S;				(* Zeit, bis die Event Schrittkette für das Empfangen Automatisch neu Startet*)
 	tStartupLEDOn		:TIME:= T#4S;				(* Zeit, wie Lange die LEDS beim Startup kurz eingeschaltet werden *)
-	tResetTimeout		:TIME:= T#8S;				(* Zeit, bis bei einem Reset es zu einem Fehler kommt, wenn kein Ping empfangen wird *)
+	tResetTimeout		:TIME:= T#25S;				(* Zeit, bis bei einem Reset es zu einem Fehler kommt, wenn kein Ping empfangen wird *)
 	tResetReboot		:TIME:= T#10S;				(* Zeit, die nach einem Reset Abgewaretet wird damit das Gerät neustarten kann*)
 	tResetStartup		:TIME:= T#5S;				(* Zeit, die nach einem Reset Abgewaretet wird bis ein Startup ausgeführt wird nach dem erhalt des Pings vom Gerät*)
 	tStartupAfterReset	:TIME := T#5S;				(* Zeit, wann das Startup Zurückgesetzt wird, wenn der Ping verloren wird *)
@@ -97,7 +98,7 @@ VAR
 	fbStringConvWeb		:fb_StringConvCYDWeb;
 	fbStringConvWifi	:fb_StringConvCYDWifi;
 	fbStringConvService	:fb_StringConvCYDService;
-	fbRS485ComCheck		:fb_RS485ComCheck;
+	fbPing				:fb_RS485Ping;
 (*----------------------------------------------*)
 (* Indexe *)
 (*----------------------------------------------*)	
@@ -157,9 +158,9 @@ END_VAR]]></Declaration>
     <Implementation>
       <ST><![CDATA[(*============================================================================================*)
 (* Parameter *)
-tPingTimer :=		GVL_HausBus_Parameter.cTimePingTimeTaster;
-tReceiveTimeout :=	GVL_HausBus_Parameter.cTimeReceiveTimeoutTaster;
-bCheckPing :=		GVL_HausBus_Parameter.bUseTasterPing;
+tPingTimer :=		GVL_HausBus_Parameter.cTimePingTimeCYD;
+tReceiveTimeout :=	GVL_HausBus_Parameter.cTimeReceiveTimeoutCYD;
+bCheckPing :=		GVL_HausBus_Parameter.bUseCYDPing;
 iMaxPingTry :=		GVL_HausBus_Parameter.cMaxPingTry;
 
 (* Service *)
@@ -230,16 +231,16 @@ CASE iDeviceStartup OF
 	END_IF
 (*============================================================================================*)
 2: 	sDeviceStartup := 'Verbindung Prüfen';
-	bStartUpCheckPing := TRUE;
 	bActivateSend := TRUE;	(* Senden Aktivieren *)
+	iDeviceStartup := iDeviceStartup+1;
 	
+	(*
 	sDeviceStartup := CONCAT(sDeviceStartup,fbRS485ComCheck.Q_sState);
 	
 	IF fbRS485ComCheck.Q_bComOk
 		OR NOT bCheckPing
 	THEN
-		iDeviceStartup := iDeviceStartup+1;
-	END_IF
+	END_IF*)
 
 (*============================================================================================*)
 3: 	sDeviceStartup := 'Reset Ausführen';	
@@ -302,12 +303,7 @@ END_CASE
 (* Sendebaustein *)
 IF bActivateSend
 THEN
-	IF fbRS485ComCheck.Q_sSend <>''
-	THEN
-		Q_sFiFoSend :=	fbRS485ComCheck.Q_sSend;
-	ELSE
-		Q_sFiFoSend :=	sFiFoSend;
-	END_IF
+	Q_sFiFoSend :=	sFiFoSend;
 END_IF
 
 (*============================================================================================*)	
@@ -432,7 +428,6 @@ CASE iStepSet OF
 		OR bSendeAnforderungExt
 		OR bSendeAnforderungBG)
 		AND bSetExecute)
-		AND fbRS485ComCheck.Q_sSend =''
 		AND NOT bStartupStart
 	THEN
 		(* Helligkeitsvorgaben speichern in Mem Arrays *)
@@ -829,9 +824,10 @@ CASE iStepSet OF
 (*============================================================================================*)	
 4:	sStateReset := 'Warte auf Ping vom Gerät';	
 	tonResetTimeout.IN := TRUE;
+	bStartUpCheckPing := TRUE;
 	
 	IF bPingOK 
-		OR NOT bCheckPing
+	(*	OR NOT bCheckPing*)
 	THEN
 		bErrorReset := FALSE;
 		tonResetTimeout.IN := FALSE;
@@ -1008,26 +1004,20 @@ END_CASE
         <ST><![CDATA[(*============================================================================================*)
 (* 	Ping Bautsein, Checkt ob die Kommunikation vorhanden ist *)
 (*============================================================================================*)
-fbRS485ComCheck(
-	I_FifoID:=				I_FifoID,
-	I_bExecute:= 			bCheckPing
-							AND bStartUpCheckPing
-							(*AND bReadyToPing*), 
-	I_bStart :=				I_bPingStart,
-	I_bTasterMode:=			TRUE,
-	I_StringReceived:=		I_StringReceived,
-	I_tPingIntervall:= 		tPingTimer, 
-	I_tPingTimeout:= 		tReceiveTimeout, 
+fbPing(
+	I_bExecute:= 			bStartUpCheckPing, 
+	I_bAutoPing:= 			bCheckPing, 
+	I_bAutoReset:= 			bCheckPing, 
+	I_bReset:= 				r_TrigReset.Q
+							OR NOT bStartUpCheckPing, 
+	I_tPingTimeout:= 		tPingTimer, 
 	I_diID:= 				I_stInput.diID, 
-	I_sPingSymbol:= 		'.LBN.', 
-	I_iInstID:= 			16, 
 	I_sStartZeichen:= 		sStartZeichen, 
 	I_sEndZeichen:= 		sEndZeichen, 
-	I_iMaxPingTry :=		iMaxPingTry,	 
+	I_StringReceived:= 		I_StringReceived, 
+	Q_sState=> , 
 	Q_bComOk=> 				bPingOK, 
-	Q_bError=> 				bErrorPing,
-	Q_bSendDone=>			(* *));
-	
+	Q_bTimeout=> 			bErrorPing);
 	]]></ST>
       </Implementation>
     </Action>
@@ -1328,14 +1318,12 @@ END_FOR]]></ST>
       <LineId Id="1281" Count="0" />
       <LineId Id="1151" Count="0" />
       <LineId Id="1146" Count="0" />
-      <LineId Id="1152" Count="0" />
       <LineId Id="1303" Count="0" />
       <LineId Id="1474" Count="0" />
+      <LineId Id="1935" Count="1" />
       <LineId Id="1153" Count="2" />
       <LineId Id="1274" Count="0" />
-      <LineId Id="1156" Count="0" />
-      <LineId Id="1158" Count="0" />
-      <LineId Id="1157" Count="0" />
+      <LineId Id="1156" Count="1" />
       <LineId Id="1163" Count="1" />
       <LineId Id="1150" Count="0" />
       <LineId Id="1172" Count="0" />
@@ -1386,9 +1374,6 @@ END_FOR]]></ST>
       <LineId Id="1315" Count="0" />
       <LineId Id="1310" Count="1" />
       <LineId Id="1318" Count="1" />
-      <LineId Id="1324" Count="0" />
-      <LineId Id="1466" Count="0" />
-      <LineId Id="1468" Count="2" />
       <LineId Id="1467" Count="0" />
       <LineId Id="1320" Count="0" />
       <LineId Id="1328" Count="0" />
@@ -1463,7 +1448,6 @@ END_FOR]]></ST>
       <LineId Id="297" Count="0" />
       <LineId Id="825" Count="1" />
       <LineId Id="99" Count="0" />
-      <LineId Id="677" Count="0" />
       <LineId Id="345" Count="0" />
       <LineId Id="96" Count="0" />
       <LineId Id="741" Count="1" />
@@ -1703,7 +1687,9 @@ END_FOR]]></ST>
       <LineId Id="116" Count="0" />
       <LineId Id="104" Count="0" />
       <LineId Id="117" Count="0" />
-      <LineId Id="123" Count="1" />
+      <LineId Id="123" Count="0" />
+      <LineId Id="337" Count="0" />
+      <LineId Id="124" Count="0" />
       <LineId Id="303" Count="0" />
       <LineId Id="125" Count="0" />
       <LineId Id="190" Count="0" />
@@ -1799,19 +1785,8 @@ END_FOR]]></ST>
     <LineIds Name="fb_CYDBus6F.ac02_Ping">
       <LineId Id="195" Count="1" />
       <LineId Id="194" Count="0" />
-      <LineId Id="177" Count="0" />
-      <LineId Id="206" Count="0" />
-      <LineId Id="178" Count="0" />
-      <LineId Id="197" Count="1" />
-      <LineId Id="200" Count="0" />
-      <LineId Id="205" Count="0" />
-      <LineId Id="192" Count="0" />
-      <LineId Id="179" Count="6" />
-      <LineId Id="199" Count="0" />
-      <LineId Id="190" Count="0" />
-      <LineId Id="153" Count="0" />
-      <LineId Id="201" Count="0" />
-      <LineId Id="174" Count="1" />
+      <LineId Id="207" Count="13" />
+      <LineId Id="175" Count="0" />
     </LineIds>
     <LineIds Name="fb_CYDBus6F.ac10_Counter">
       <LineId Id="16" Count="1" />

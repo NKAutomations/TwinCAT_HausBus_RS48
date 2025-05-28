@@ -1,0 +1,292 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="fb_RS485Ping" Id="{e37a6f29-62a1-4d1c-a02e-787c44742299}" SpecialFunc="None">
+    <Declaration><![CDATA[(*======================================================================================================================================*)
+(*fb_RS485Ping:	Einfacher Universal Ping Baustein um von allerlei Geräten von haus-bus.de Kommunikation zu Checken über RS485 
+				im gegensatz zum ComCheck Baustein wird hier nur gelesen, da es Geräte gibt, welche entweder Zyklich selbst 
+				ein Lebenszeichen geben z.B. CYD oder die 6Fach Taster (Helligkeit, Temp, Luftfeuchtigkeit).
+				Besonderheit bei dem 6Fach Taster ist: nach einem Reset werden immer auch StatusTelegramme gesendet. 
+				Damit lässt sich dann auch festellen ob ein Taster Online ist. 
+				Für die Aktoren ist dieser Baustein eher weniger geeignet, da es dort keine Zyklischen Telegramme gibt und 
+				auch nach einem Reset keine Statustelegramme gesendet werden! 
+				
+				Der Baustein kann auch verwendet werden um einfach nur zu überwachen, ob ein Teilnehmer noch online ist über langen
+				Zeitraum- Dafür muss der Timeout einfach sehr Hoch gestellt werden - z.B 120 Minuten und bAutoPing Aktiviert sein 
+			
+				Wenn I_bAutoPing nicht Aktiv ist, wird nur eine Ping überprüfung beim Aktivieren des Bausteins über I_bExecute 
+				durchgeführt. Wenn die Prüfung erfolgreich ist, wird der Status Q_bComOk gesetzt. Der Status Q_bComOk wird erst durch 
+				I_bReset wieder zurück gesetzt. 
+				
+				Wenn I_bAutoPing Aktiv ist, wird sobald der Baustein über I_bExecute gestartet wurde, und ein Ping Aufgebaut ist, 
+				immer nach ablauf der Zeit: I_tPingTimeout erneut der Ping geprüft. Sollte der Ping nicht kommen, so wird nach ablauf der 
++				Zeit: I_tPingTimeout in den Timepout gesprungen. Dann kann nur über einen Reset durch: I_bReset erneut gestartet werden*)
+(*
+Date          	| Version    	| created under        	| Author          	| Remark *)
+(*====================================================================================================================================================*)
+(*27/05/2025   	| 1.00      		| TC3		  		| N.Kersting       | first release *)
+(*====================================================================================================================================================*)
+FUNCTION_BLOCK fb_RS485Ping
+VAR_INPUT
+	I_bExecute			:BOOL;							(* Aktiviert den Ablauf *)
+	I_bAutoPing			:BOOL;							(* Aktiviert die Automatische Prüfung, wenn aus- wird nur einmal beim Aktivieren über bExecute geprüft *)
+	I_bAutoReset		:BOOL;							(* Aktiviert das Automatische wieder Quittieren wenn der Ping nicht empfangen wurde *)
+	I_bReset			:BOOL;							(* Setzet den Ping und die Ablauf zurück *)
+	I_tPingTimeout		:TIME := T#2S;					(* Zeit, bis der Ping gekommen sein muss *)
+	I_diID				:DINT;							(* Device ID *)
+	I_sStartZeichen		:BYTE := 16#FD;					(* Startzeichen Präfix *)
+	I_sEndZeichen		:BYTE := 16#FE;					(* Endzeichen Suffix *)
+	I_StringReceived	:STRING(255);					(* Empfangener String *)
+END_VAR
+VAR_OUTPUT		
+	Q_sState			:STRING;						(* Status  *)
+	Q_bComOk			:BOOL;							(* Verbindung Aufgebaut *)
+	Q_bTimeout			:BOOL;							(* Timeout  *)
+END_VAR
+VAR
+	bResetCnt			:BOOL;
+	tonTimeout			:ton;
+	icntSymbole			:INT;
+	iStep				:INT;
+	i					:INT;
+	fbBusPingEvent		:fb_BusPingEvent;
+	bCOMMem				:BOOL;
+	rTrigFailCount		:r_trig;
+	
+	dwCntFail			:DWORD;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[(* Timeout Zeit *)
+tonTimeout(
+	PT:= I_tPingTimeout);
+
+(* Ping Fehler Zählen *)	
+rTrigFailCount();
+	
+(* Reset ausführen *)
+IF I_bReset 
+	OR NOT I_bExecute
+THEN
+	iStep := 0;	
+END_IF
+
+(* Timeout Counter auf 0 Setzen *)
+IF bResetCnt
+THEN
+	dwCntFail := 0;
+END_IF
+	
+(* Ablauf *)
+CASE iStep OF
+(*=========================================================*)	
+0:	Q_sState := 'INIT';
+	Q_bComOk := FALSE;
+	bCOMMem := FALSE; (* Ping zurück setzen *)
+	tonTimeout.IN := FALSE;
+	Q_bTimeout := FALSE;
+	rTrigFailCount.CLK := FALSE;
+	
+	IF I_bExecute
+	THEN
+		iStep := iStep +1;
+	END_IF
+	
+(*=========================================================*)	
+1:	Q_sState :=  'Warten auf Ping ';	
+	tonTimeout.IN := TRUE;
+	
+	IF fbBusPingEvent.Q_bOut
+	THEN
+		tonTimeout.IN := FALSE;
+		bCOMMem := TRUE;
+		iStep := 998;
+	ELSIF
+		tonTimeout.Q
+	THEN
+		tonTimeout.IN := FALSE;
+		Q_bTimeout := TRUE;
+		Q_bComOk := FALSE;
+		Q_sState :=  'Timeout- Kein Ping empfangen';	
+		iStep := -1;
+	END_IF
+
+(*=========================================================*)	
+998: Q_sState :=  'Ping empfangen, Warte das String Leer ist';	
+	tonTimeout.IN := TRUE;
+	
+	IF NOT fbBusPingEvent.Q_bOut
+	THEN
+		iStep := 999;
+	ELSIF
+		tonTimeout.Q
+	THEN
+		tonTimeout.IN := FALSE;
+		Q_bTimeout := TRUE;
+		Q_bComOk := FALSE;
+		Q_sState :=  'Timeout String wurde nicht geleert!';	
+		iStep := -998;
+	END_IF
+	
+(*=========================================================*)	
+999: Q_sState :=  'Ping empfangen, erfolgreich Verbunden!';		
+	Q_bComOk := TRUE;
+	Q_bTimeout := FALSE;
+	
+	(* Die Verbindung wurde nun geprüft, kann aber nur über
+		I_bReset wieder erneut geprüft werden ! *)
+	
+	IF I_bAutoPing
+	THEN
+		tonTimeout.IN := TRUE;
+		
+		IF tonTimeout.Q
+		THEN
+			tonTimeout.IN := FALSE;
+				
+			IF I_bExecute
+			THEN
+				iStep := 1;	(* Erneut Prüfen *)
+			END_IF
+		END_IF
+	ELSE
+		tonTimeout.IN := FALSE;
+	END_IF
+ELSE
+(*=========================================================*)	
+(*	Timeout *)	
+	rTrigFailCount.CLK := TRUE;
+	
+	IF rTrigFailCount.Q
+	THEN
+		dwCntFail := dwCntFail+1;
+	END_IF
+	(*	Automatische Quittierung *)	
+	IF 	I_bAutoReset
+	THEN
+		tonTimeout.IN := TRUE;
+		
+		IF tonTimeout.Q
+			OR fbBusPingEvent.Q_bOut
+		THEN
+			tonTimeout.IN := FALSE;
+			
+			IF I_bExecute
+			THEN
+				rTrigFailCount.CLK := FALSE;
+				iStep := 1;	(* Erneut Prüfen *)
+			END_IF
+		END_IF
+	END_IF
+END_CASE
+
+
+(* Durchgehend Checken ob Ping kommt *)
+fbBusPingEvent(
+	I_bReset := 			FALSE,
+	I_sID:= 				DINT_TO_STRING(I_diID ), 
+	I_sReceivedString:= 	I_StringReceived, 
+	Q_bOut=> 				);
+	]]></ST>
+    </Implementation>
+    <LineIds Name="fb_RS485Ping">
+      <LineId Id="131" Count="0" />
+      <LineId Id="74" Count="0" />
+      <LineId Id="116" Count="0" />
+      <LineId Id="223" Count="0" />
+      <LineId Id="211" Count="0" />
+      <LineId Id="117" Count="0" />
+      <LineId Id="210" Count="0" />
+      <LineId Id="222" Count="0" />
+      <LineId Id="69" Count="0" />
+      <LineId Id="186" Count="0" />
+      <LineId Id="75" Count="0" />
+      <LineId Id="78" Count="0" />
+      <LineId Id="76" Count="0" />
+      <LineId Id="241" Count="0" />
+      <LineId Id="240" Count="0" />
+      <LineId Id="236" Count="1" />
+      <LineId Id="239" Count="0" />
+      <LineId Id="238" Count="0" />
+      <LineId Id="224" Count="0" />
+      <LineId Id="70" Count="2" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="128" Count="0" />
+      <LineId Id="81" Count="0" />
+      <LineId Id="103" Count="0" />
+      <LineId Id="118" Count="0" />
+      <LineId Id="160" Count="0" />
+      <LineId Id="233" Count="0" />
+      <LineId Id="84" Count="1" />
+      <LineId Id="87" Count="0" />
+      <LineId Id="86" Count="0" />
+      <LineId Id="88" Count="0" />
+      <LineId Id="105" Count="0" />
+      <LineId Id="104" Count="0" />
+      <LineId Id="89" Count="0" />
+      <LineId Id="119" Count="0" />
+      <LineId Id="106" Count="0" />
+      <LineId Id="109" Count="0" />
+      <LineId Id="147" Count="0" />
+      <LineId Id="107" Count="0" />
+      <LineId Id="113" Count="0" />
+      <LineId Id="120" Count="2" />
+      <LineId Id="146" Count="0" />
+      <LineId Id="159" Count="0" />
+      <LineId Id="129" Count="0" />
+      <LineId Id="124" Count="0" />
+      <LineId Id="123" Count="0" />
+      <LineId Id="108" Count="0" />
+      <LineId Id="188" Count="1" />
+      <LineId Id="111" Count="0" />
+      <LineId Id="195" Count="0" />
+      <LineId Id="200" Count="0" />
+      <LineId Id="190" Count="1" />
+      <LineId Id="194" Count="0" />
+      <LineId Id="196" Count="2" />
+      <LineId Id="204" Count="0" />
+      <LineId Id="202" Count="1" />
+      <LineId Id="201" Count="0" />
+      <LineId Id="199" Count="0" />
+      <LineId Id="192" Count="0" />
+      <LineId Id="205" Count="0" />
+      <LineId Id="112" Count="0" />
+      <LineId Id="110" Count="0" />
+      <LineId Id="127" Count="0" />
+      <LineId Id="225" Count="1" />
+      <LineId Id="114" Count="0" />
+      <LineId Id="125" Count="0" />
+      <LineId Id="115" Count="0" />
+      <LineId Id="142" Count="1" />
+      <LineId Id="145" Count="0" />
+      <LineId Id="149" Count="2" />
+      <LineId Id="162" Count="0" />
+      <LineId Id="175" Count="2" />
+      <LineId Id="179" Count="0" />
+      <LineId Id="178" Count="0" />
+      <LineId Id="152" Count="2" />
+      <LineId Id="144" Count="0" />
+      <LineId Id="161" Count="0" />
+      <LineId Id="180" Count="1" />
+      <LineId Id="212" Count="3" />
+      <LineId Id="217" Count="0" />
+      <LineId Id="216" Count="0" />
+      <LineId Id="220" Count="0" />
+      <LineId Id="163" Count="0" />
+      <LineId Id="165" Count="0" />
+      <LineId Id="167" Count="2" />
+      <LineId Id="187" Count="0" />
+      <LineId Id="170" Count="0" />
+      <LineId Id="172" Count="0" />
+      <LineId Id="185" Count="0" />
+      <LineId Id="182" Count="1" />
+      <LineId Id="218" Count="0" />
+      <LineId Id="184" Count="0" />
+      <LineId Id="174" Count="0" />
+      <LineId Id="171" Count="0" />
+      <LineId Id="166" Count="0" />
+      <LineId Id="80" Count="0" />
+      <LineId Id="91" Count="7" />
+      <LineId Id="82" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

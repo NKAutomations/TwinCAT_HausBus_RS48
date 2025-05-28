@@ -71,19 +71,17 @@
 		</System>
 		<Plc>
 			<Project GUID="{B5DF68DD-93BD-4F54-AFC9-3AA000FD7B3F}" Name="RS485_HausBus" PrjFilePath="RS485_HausBus\RS485_HausBus.plcproj" TmcFilePath="RS485_HausBus\RS485_HausBus.tmc" ReloadTmc="true" AmsPort="851" FileArchiveSettings="#x000e" SymbolicMapping="true">
-				<Instance Id="#x08502000" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcPath="RS485_HausBus\RS485_HausBus.tmc" TmcHash="{553CDE24-C704-5F53-47EC-208580D1EFB6}">
+				<Instance Id="#x08502000" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcPath="RS485_HausBus\RS485_HausBus.tmc" TmcHash="{F61DA9E2-0C73-2530-B313-37935E0FC8EA}">
 					<Name>RS485_HausBus Instance</Name>
 					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
 					<Vars VarGrpType="1">
 						<Name>PlcTask Inputs</Name>
 						<Var>
 							<Name>.uiEtherCATStateBK1120_RS485COM</Name>
-							<Comment><![CDATA[ EtherCAT Status ]]></Comment>
 							<Type>UINT</Type>
 						</Var>
 						<Var>
 							<Name>.uiKBusStateBK1120_RS485COM</Name>
-							<Comment><![CDATA[ Buskoppler Status]]></Comment>
 							<Type>UINT</Type>
 						</Var>
 						<Var>

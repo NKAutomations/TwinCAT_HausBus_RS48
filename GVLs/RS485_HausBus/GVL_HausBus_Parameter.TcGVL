@@ -5,14 +5,21 @@
 VAR_GLOBAL
 	
 	(* Ping *)
-	bUseTasterPing						:BOOL := FALSE;			(* Schaltet den Dauerping für die Taster ein *)	(* Wird noch nicht verwendet, da es nicht so zuverlässig Funktioniert *)
-	bUseRelaisPing						:BOOL := FALSE;			(* Schaltet den Dauerping für die Relais ein *)	(* Wird noch nicht verwendet, da es nicht so zuverlässig Funktioniert *)
+	bUseTasterPing						:BOOL := TRUE;			(* Schaltet den Dauerping für die Taster ein *)	(* Wird noch nicht verwendet, da es nicht so zuverlässig Funktioniert *)
+	bUseRelaisPing						:BOOL := TRUE;			(* Schaltet den Dauerping für die Relais ein *)	(* Wird noch nicht verwendet, da es nicht so zuverlässig Funktioniert *)
+	bUseCYDPing							:BOOL := FALSE;	
+	bUseFiFoPing						:BOOL := TRUE; 
 	
-	cTimePingTimeRelais					:TIME := T#10S;			(* Ping Intervallzeit *)
+	cTimePingTimeCYD					:TIME := T#25S;			(* Ping Intervallzeit *)
+	cTimeReceiveTimeoutCYD				:TIME := T#200MS;		(* Ping Empfangs Timeout *)
+	
+	cTimePingTimeRelais					:TIME := T#15S;			(* Ping Intervallzeit *)
 	cTimeReceiveTimeoutRelais			:TIME := T#200MS;		(* Ping Empfangs Timeout *)
 	
-	cTimePingTimeTaster					:TIME := T#5M;			(* Ping Intervallzeit *)	(* Vorerst auf 5min gestellt, da die Taster Automatisch senden (Helligkeit/Luftfeuchtigkeit/Temp usw. *)
+	cTimePingTimeTaster					:TIME := T#15S;			(* Ping Intervallzeit *)	(* Vorerst auf 5min gestellt, da die Taster Automatisch senden (Helligkeit/Luftfeuchtigkeit/Temp usw. *)
 	cTimeReceiveTimeoutTaster			:TIME := T#200MS;		(* Ping Empfangs Timeout *)
+	
+	cPingSendTimeFiFo					:TIME := T#5S;			(* Intervall Zeit, wann ein Ping vom FiFo gesendet werden soll an alle Devices *)
 	
 	cMaxPingTry							:INT :=	5;				(* Anzahl der Pingversuche *)
 	

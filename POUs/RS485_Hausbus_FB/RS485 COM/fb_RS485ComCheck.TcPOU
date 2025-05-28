@@ -14,6 +14,7 @@ Date          	| Version    	| created under        	| Author          	| Remark
 (*10/05/2025   	| 1.04      		| TC3		  		| N.Kersting       | Umrüstung Auf Externen Fifo  *)
 (*12/05/2025   	| 1.05      		| TC3		  		| N.Kersting       | Verriegelung über I_bStart, damit nich gesendet werden kann wenn nicht Freigegeben  *)
 (*14/05/2025   	| 1.06      		| TC3		  		| N.Kersting       | Ausgänge ergänzt für Done  *)
+(*27/05/2025   	| 1.07      		| TC3		  		| N.Kersting       | Aufgeräumt und wesentlich bessere Auswertung Es wird nicht mehr auf Instanz ID geachtet beim receive  *)
 (*====================================================================================================================================================*)
 FUNCTION_BLOCK fb_RS485ComCheck
 VAR_INPUT
@@ -24,12 +25,11 @@ VAR_INPUT
 	I_tPingTimeout		:TIME := T#2S;					(* Zeit, bis der Ping zurück gekommen sein muss *)
 	I_diID				:DINT;							(* Device ID *)
 	I_sPingSymbol		:STRING :='.BTN.';				(* Symbol, welches als Ping genutzt werden soll *)
-	I_iInstID			:INT := 17;						(* Instanz ID *)
+	I_iInstID			:INT := 17;						(* Instanz ID  wird nur zum senden des Abfragebefehls verwendet! *)
 	I_sStartZeichen		:BYTE := 16#FD;					(* Startzeichen Präfix *)
 	I_sEndZeichen		:BYTE := 16#FE;					(* Endzeichen Suffix *)
 	I_StringReceived	:STRING(255);					(* Empfangener String *)
 	I_iMaxPingTry		:INT := 5;
-	I_bTasterMode		:BOOL;							(* Wenn ein Taster Abgefragt wird, gibt es die Besonderheit, dass dieser Selbst Signale Sendet (Helligkeit, temperatur usw. *)
 END_VAR
 VAR_OUTPUT
 	Q_sSend				:STRING(255);
@@ -42,7 +42,7 @@ VAR_OUTPUT
 END_VAR
 VAR
 	sStringSend			:STRING;
-	fbBusPingEvent		:ARRAY[1..6] OF fb_BusPingEvent;
+	fbBusPingEvent		:fb_BusPingEvent;
 	
 	tonIntervall		:ton;
 	tonTimeout			:ton;
@@ -79,7 +79,7 @@ sStringSend:=	CONCAT(sStringSend,'.gSTATUS');
 sStringSend:=	CONCAT(sStringSend,F_ToCHR(I_sEndZeichen));
 
 IF NOT I_bExecute 
-	AND NOT I_bTasterMode
+	AND NOT I_bStart
 THEN
 	Q_bComOk := FALSE;
 	Q_bTimeout := FALSE;
@@ -121,7 +121,6 @@ CASE iStep OF
 		iStep := iStep +1;
 	ELSIF
 		NOT I_bExecute
-		AND I_bTasterMode
 	THEN
 		iStep := 10;
 	END_IF
@@ -246,18 +245,25 @@ ELSE
 	END_IF
 END_CASE
 
+fbBusPingEvent(
+	I_bReset := 			FALSE,
+	I_sID:= 				DINT_TO_STRING(I_diID ),
+	I_sReceivedString:= 	I_StringReceived, 
+	Q_bOut=> 				);
+	
+IF iStep > 0
+	AND fbBusPingEvent.Q_bOut
+THEN
+	bCOMMem := TRUE;
+END_IF
+
+(*	
 IF I_bTasterMode
 THEN
 	icntSymbole := 0;
 	(* Durchgehend Checken ob Ping kommt *)
 	FOR i := 1 TO 6 BY 1 DO 
-		fbBusPingEvent[i](
-			I_bReset := 			FALSE,
-			I_sID:= 				DINT_TO_STRING(I_diID ), 
-			I_iInstID:=				I_iInstID -1 +i,	
-			I_sReceivedString:= 	I_StringReceived, 
-			I_bTasterMode := 		TRUE,
-			Q_bOut=> 				);
+		
 			
 		IF fbBusPingEvent[i].Q_bOut
 		THEN
@@ -275,9 +281,7 @@ ELSE
 	fbBusPingEvent[1](
 		I_bReset := 			FALSE,
 		I_sID:= 				DINT_TO_STRING(I_diID ), 
-		I_iInstID:=				I_iInstID,	
 		I_sReceivedString:= 	I_StringReceived, 
-		I_bTasterMode := 		FALSE,
 		Q_bOut=> 				);
 		
 	IF iStep > 0
@@ -286,7 +290,7 @@ ELSE
 		bCOMMem := TRUE;
 	END_IF
 END_IF
-
+*)
 
 		
 
@@ -306,7 +310,7 @@ END_IF
       <LineId Id="173" Count="0" />
       <LineId Id="179" Count="0" />
       <LineId Id="60" Count="0" />
-      <LineId Id="237" Count="0" />
+      <LineId Id="299" Count="0" />
       <LineId Id="72" Count="0" />
       <LineId Id="165" Count="0" />
       <LineId Id="205" Count="0" />
@@ -337,7 +341,7 @@ END_IF
       <LineId Id="487" Count="0" />
       <LineId Id="349" Count="0" />
       <LineId Id="10" Count="0" />
-      <LineId Id="421" Count="2" />
+      <LineId Id="421" Count="1" />
       <LineId Id="425" Count="1" />
       <LineId Id="11" Count="4" />
       <LineId Id="151" Count="0" />
@@ -422,11 +426,20 @@ END_IF
       <LineId Id="225" Count="1" />
       <LineId Id="223" Count="0" />
       <LineId Id="327" Count="0" />
+      <LineId Id="489" Count="4" />
       <LineId Id="379" Count="0" />
+      <LineId Id="494" Count="0" />
+      <LineId Id="496" Count="0" />
+      <LineId Id="502" Count="0" />
+      <LineId Id="498" Count="1" />
+      <LineId Id="495" Count="0" />
+      <LineId Id="501" Count="0" />
+      <LineId Id="500" Count="0" />
       <LineId Id="378" Count="0" />
       <LineId Id="380" Count="0" />
       <LineId Id="414" Count="0" />
-      <LineId Id="383" Count="8" />
+      <LineId Id="383" Count="1" />
+      <LineId Id="391" Count="0" />
       <LineId Id="415" Count="2" />
       <LineId Id="419" Count="0" />
       <LineId Id="418" Count="0" />
@@ -436,7 +449,8 @@ END_IF
       <LineId Id="409" Count="0" />
       <LineId Id="392" Count="0" />
       <LineId Id="400" Count="0" />
-      <LineId Id="394" Count="5" />
+      <LineId Id="394" Count="2" />
+      <LineId Id="398" Count="0" />
       <LineId Id="393" Count="0" />
       <LineId Id="401" Count="0" />
       <LineId Id="403" Count="3" />
