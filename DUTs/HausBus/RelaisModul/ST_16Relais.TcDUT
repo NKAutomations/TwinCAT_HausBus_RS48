@@ -1,0 +1,11 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <DUT Name="ST_16Relais" Id="{2654d273-6414-4ac1-8388-bd7a6b6832b0}">
+    <Declaration><![CDATA[TYPE ST_16Relais :
+STRUCT
+	bOut	 : ARRAY[1..16] OF BOOL;
+END_STRUCT
+END_TYPE
+]]></Declaration>
+  </DUT>
+</TcPlcObject>

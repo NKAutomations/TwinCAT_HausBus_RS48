@@ -1,0 +1,54 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="fb_StringConvCYDWifi" Id="{81c1d39a-4832-4877-842a-c43cfa89389d}" SpecialFunc="None">
+    <Declaration><![CDATA[(*======================================================================================================================================*)
+(*fb_StringConvTB6F:	Zusammensetzen des Strings für 6Fach Bust Taster (LEDs und Hintergrundbeleuchtung und Reset)*)
+(*
+Date          	| Version    	| created under        	| Author          	| Remark *)
+(*====================================================================================================================================================*)
+(*05/05/2025   	| 1.00      		| TC3		  		| N.Kersting       | first release *)
+(*06/05/2025   	| 1.01      		| TC3		  		| N.Kersting       | Externe LEDs Nachgerüstet *)
+(*08/05/2025   	| 1.02      		| TC3		  		| N.Kersting       | Umschaltung ob Externe LEDs verwendet werden oder nicht *)
+(*22/05/2025   	| 1.03      		| TC3		  		| N.Kersting       | Spezialversion für CYD *)
+(*====================================================================================================================================================*)
+FUNCTION_BLOCK fb_StringConvCYDWifi
+VAR_INPUT
+	I_diID				:DINT;							(* Device ID *)
+	I_bWIFIOn			:BOOL;
+	I_sStartZeichen		:BYTE := 16#FD;					(* Startzeichen Präfix *)
+	I_sEndZeichen		:BYTE := 16#FE;					(* Endzeichen Suffix *)
+END_VAR
+VAR_OUTPUT
+	Q_sConvString		:STRING(255);
+END_VAR
+VAR
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+IF I_bWIFIOn
+THEN
+	Q_sConvString:=	CONCAT(F_ToCHR(I_sStartZeichen),DINT_TO_STRING(I_diID));
+	Q_sConvString:=	CONCAT(Q_sConvString,'.SYS.');
+	Q_sConvString:=	CONCAT(Q_sConvString,INT_TO_STRING(1));
+	Q_sConvString:=	CONCAT(Q_sConvString,'.WIFI.');
+	Q_sConvString:=	CONCAT(Q_sConvString,INT_TO_STRING(1));
+	Q_sConvString:=	CONCAT(Q_sConvString,F_ToCHR(I_sEndZeichen));
+else
+	Q_sConvString:=	CONCAT(F_ToCHR(I_sStartZeichen),DINT_TO_STRING(I_diID));
+	Q_sConvString:=	CONCAT(Q_sConvString,'.SYS.');
+	Q_sConvString:=	CONCAT(Q_sConvString,INT_TO_STRING(1));
+	Q_sConvString:=	CONCAT(Q_sConvString,'.WIFI.');
+	Q_sConvString:=	CONCAT(Q_sConvString,INT_TO_STRING(0));
+	Q_sConvString:=	CONCAT(Q_sConvString,F_ToCHR(I_sEndZeichen));
+END_IF
+]]></ST>
+    </Implementation>
+    <LineIds Name="fb_StringConvCYDWifi">
+      <LineId Id="970" Count="0" />
+      <LineId Id="899" Count="8" />
+      <LineId Id="910" Count="6" />
+      <LineId Id="197" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

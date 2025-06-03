@@ -1,0 +1,466 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.12">
+  <POU Name="fb_RS485ComCheck" Id="{abf660f2-15df-4ed5-b4f4-d9a46fbda58c}" SpecialFunc="None">
+    <Declaration><![CDATA[(*======================================================================================================================================*)
+(*fb_RS485ComCheck:	Einfacher Universal Ping Baustein um von allerlei Geräten von haus-bus.de Kommunikation zu Checken über RS485 
+	In Diesem Fall ist es für einen Taster (BTN) bei einem Relais sollte es (OUT) sein*)
+(*
+Date          	| Version    	| created under        	| Author          	| Remark *)
+(*====================================================================================================================================================*)
+(*05/05/2025   	| 1.00      		| TC3		  		| N.Kersting       | first release *)
+(*06/05/2025   	| 1.01      		| TC3		  		| N.Kersting       | Bugfix Timeouts werden besser ausgewertet *)
+(*07/05/2025   	| 1.02      		| TC3		  		| N.Kersting       | Bug in Schritt 2 behoben (weiter, wenn nicht Busy) *)
+(*09/05/2025   	| 1.03      		| TC3		  		| N.Kersting       | Counter für verbindungsversuche inkl. erneut senden *)
+(*10/05/2025   	| 1.04      		| TC3		  		| N.Kersting       | Umrüstung Auf Externen Fifo  *)
+(*12/05/2025   	| 1.05      		| TC3		  		| N.Kersting       | Verriegelung über I_bStart, damit nich gesendet werden kann wenn nicht Freigegeben  *)
+(*14/05/2025   	| 1.06      		| TC3		  		| N.Kersting       | Ausgänge ergänzt für Done  *)
+(*27/05/2025   	| 1.07      		| TC3		  		| N.Kersting       | Aufgeräumt und wesentlich bessere Auswertung Es wird nicht mehr auf Instanz ID geachtet beim receive  *)
+(*====================================================================================================================================================*)
+FUNCTION_BLOCK fb_RS485ComCheck
+VAR_INPUT
+	I_FifoID			:INT;
+	I_bExecute			:BOOL;							(* Aktiviert den Baustein *)
+	I_bStart			:BOOL;							(* Startet das Senden des Pings *)
+	I_tPingIntervall	:TIME := T#5S;					(* Intervall Zeit wann die Kommunikation geprüft werden soll *)
+	I_tPingTimeout		:TIME := T#2S;					(* Zeit, bis der Ping zurück gekommen sein muss *)
+	I_diID				:DINT;							(* Device ID *)
+	I_sPingSymbol		:STRING :='.BTN.';				(* Symbol, welches als Ping genutzt werden soll *)
+	I_iInstID			:INT := 17;						(* Instanz ID  wird nur zum senden des Abfragebefehls verwendet! *)
+	I_sStartZeichen		:BYTE := 16#FD;					(* Startzeichen Präfix *)
+	I_sEndZeichen		:BYTE := 16#FE;					(* Endzeichen Suffix *)
+	I_StringReceived	:STRING(255);					(* Empfangener String *)
+	I_iMaxPingTry		:INT := 5;
+END_VAR
+VAR_OUTPUT
+	Q_sSend				:STRING(255);
+	Q_bBusy 			:BOOL;
+	Q_bSendDone			:BOOL;
+	Q_sState			:STRING;
+	Q_bComOk			:BOOL;
+	Q_bTimeout			:BOOL;
+	Q_bError			:BOOL;
+END_VAR
+VAR
+	sStringSend			:STRING;
+	fbBusPingEvent		:fb_BusPingEvent;
+	
+	tonIntervall		:ton;
+	tonTimeout			:ton;
+	tonRecevieAutoReset	:ton;
+	
+	iStepReceive		:INT;
+	iStep				:INT;
+	icntComTry			:INT;
+	iMaxComTry			:INT := 5;
+	i					:INT;
+	icntSymbole			:INT;
+	
+	bSend				:BOOL;
+	bReceived			:BOOL;
+	bCOMMem				:BOOL;
+END_VAR
+]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[iMaxComTry :=	I_iMaxPingTry;
+
+(* Intervall timer *)
+tonIntervall(
+	PT := I_tPingIntervall);
+	
+(* Timeout timer *)
+tonTimeout(
+	PT := I_tPingTimeout);
+	
+(* Ping String ertsllen *)
+sStringSend:=	CONCAT(F_ToCHR(I_sStartZeichen),DINT_TO_STRING(I_diID));
+sStringSend:=	CONCAT(sStringSend,I_sPingSymbol);
+sStringSend:=	CONCAT(sStringSend,INT_TO_STRING(I_iInstID));
+sStringSend:=	CONCAT(sStringSend,'.gSTATUS');
+sStringSend:=	CONCAT(sStringSend,F_ToCHR(I_sEndZeichen));
+
+IF NOT I_bExecute 
+	AND NOT I_bStart
+THEN
+	Q_bComOk := FALSE;
+	Q_bTimeout := FALSE;
+	tonIntervall.IN := FALSE;
+	tonTimeout.IN := FALSE;
+	sStringSend:= '';
+	bSend := FALSE;
+	iStep := 0;
+ELSE
+	ac01_Send();
+END_IF	
+
+
+
+
+				
+			
+			]]></ST>
+    </Implementation>
+    <Action Name="ac01_Send" Id="{77a7537f-996e-4032-8308-736998e9ef1e}">
+      <Implementation>
+        <ST><![CDATA[(* Sende Schrittkette *)
+			
+CASE iStep OF
+(*=========================================================*)	
+0:	Q_sState := ' INIT';
+	tonIntervall.IN := FALSE;
+	tonTimeout.IN := FALSE;
+	bCOMMem := FALSE;
+	bSend := FALSE;
+	Q_bBusy := FALSE;
+	Q_sSend := '';
+	
+	IF I_bExecute
+		AND I_bStart
+	THEN
+		Q_bSendDone := FALSE;
+		Q_bBusy := TRUE;
+		iStep := iStep +1;
+	ELSIF
+		NOT I_bExecute
+	THEN
+		iStep := 10;
+	END_IF
+
+(*=========================================================*)	
+1:	Q_sState := 'Starte Sendebefehl';
+	
+	IF GVL_RS485FiFoSend.bSendDoneFiFo[I_FifoID]
+	THEN
+		tonTimeout.IN := TRUE;
+		Q_sSend := sStringSend;
+	END_IF
+	IF NOT GVL_RS485FiFoSend.bSendDoneFiFo[I_FifoID]
+	THEN
+		tonTimeout.IN := FALSE;
+		iStep := iStep +1;
+	ELSIF
+		tonTimeout.Q
+	THEN
+		tonTimeout.IN := FALSE;
+		Q_sState := 'Timeout Send Busy';
+		iStep := -1;
+	END_IF
+	
+(*=========================================================*)	
+2:	Q_sState := 'Auswertung Senden';
+	bSend := FALSE;	
+	tonTimeout.IN := TRUE;
+	
+	IF GVL_RS485FiFoSend.bSendDoneFiFo[I_FifoID]
+	THEN
+		Q_sSend := '';
+		Q_bSendDone := TRUE;
+		tonTimeout.IN := FALSE;
+		iStep := iStep +1;
+	ELSIF
+		tonTimeout.Q
+	THEN
+		Q_sState := 'Timeout Send Done';
+		iStep := -2;
+	END_IF
+		
+(*=========================================================*)	
+3:	Q_sState := 'Warte auf Empfang';
+	tonTimeout.IN := TRUE;
+	
+	IF tonTimeout.Q
+	THEN
+		(* Kommunikations versuche *)
+		IF icntComTry <iMaxComTry
+		THEN
+			icntComTry := icntComTry +1;
+			iStep := 5;				(* Erneut Senden *)
+		ELSE
+			Q_sState := 'Timeout kein Ping Empfangen';
+			Q_bComOk := FALSE;
+			Q_bTimeout := TRUE;
+			iStep := -4;	(* Erneut Empfangen *)
+		END_IF
+	ELSE
+		
+		IF	bCOMMem
+		THEN
+			bCOMMem := FALSE;
+			iStep := iStep+1;		(* Telegram erhalten *)
+		END_IF
+	END_IF
+	
+(*=========================================================*)	
+4:	Q_sState := 'Ping Empfangen, Warte auf Intervall';
+	tonIntervall.IN := TRUE;
+	Q_bComOk := TRUE;
+	Q_bTimeout := FALSE;
+	
+	IF tonIntervall.Q
+		AND I_bStart
+	THEN
+		icntComTry := 0;	(* Wenn die Verbindung wieder da ist dürfen die Versuche gelöscht werden *)
+		iStep := 0;
+	END_IF
+
+(*=========================================================*)	
+5:	Q_sState := 'Ping nicht Empfangen, Warte auf Intervall';
+	tonIntervall.IN := TRUE;
+	
+	IF tonIntervall.Q
+		AND I_bStart
+	THEN
+		iStep := 0;
+	END_IF
+
+(*=========================================================*)	
+10:	Q_sState := 'Warten Auf Automatischen Ping vom Taster';
+	tonIntervall.IN := TRUE;
+	
+	IF tonIntervall.Q
+		AND I_bStart
+	THEN
+		Q_bComOk := FALSE;
+		iStep := 0;
+	ELSE
+		IF bCOMMem
+		THEN
+			tonIntervall.IN := FALSE;
+			Q_bComOk := TRUE;
+			iStep := 0;
+		END_IF
+	END_IF	
+ELSE
+	tonIntervall.IN := TRUE;
+	tonTimeout.IN := FALSE;
+	Q_bComOk := FALSE;
+	bSend := FALSE;
+	Q_bBusy := FALSE;
+	icntComTry := 0;
+	Q_sSend := '';
+	
+	IF tonIntervall.Q
+		AND I_bStart
+	THEN
+		iStep := 0;
+	END_IF
+END_CASE
+
+fbBusPingEvent(
+	I_bReset := 			FALSE,
+	I_sID:= 				DINT_TO_STRING(I_diID ),
+	I_sReceivedString:= 	I_StringReceived, 
+	Q_bOut=> 				);
+	
+IF iStep > 0
+	AND fbBusPingEvent.Q_bOut
+THEN
+	bCOMMem := TRUE;
+END_IF
+
+(*	
+IF I_bTasterMode
+THEN
+	icntSymbole := 0;
+	(* Durchgehend Checken ob Ping kommt *)
+	FOR i := 1 TO 6 BY 1 DO 
+		
+			
+		IF fbBusPingEvent[i].Q_bOut
+		THEN
+			icntSymbole := icntSymbole +1;
+		END_IF
+	END_FOR
+	
+	IF iStep > 0
+		AND icntSymbole >0
+	THEN
+		bCOMMem := TRUE;
+	END_IF
+ELSE
+	(* Nur nach der einen ID Gucken *)
+	fbBusPingEvent[1](
+		I_bReset := 			FALSE,
+		I_sID:= 				DINT_TO_STRING(I_diID ), 
+		I_sReceivedString:= 	I_StringReceived, 
+		Q_bOut=> 				);
+		
+	IF iStep > 0
+		AND fbBusPingEvent[1].Q_bOut
+	THEN
+		bCOMMem := TRUE;
+	END_IF
+END_IF
+*)
+
+		
+
+]]></ST>
+      </Implementation>
+    </Action>
+    <LineIds Name="fb_RS485ComCheck">
+      <LineId Id="215" Count="1" />
+      <LineId Id="71" Count="0" />
+      <LineId Id="80" Count="0" />
+      <LineId Id="82" Count="0" />
+      <LineId Id="81" Count="0" />
+      <LineId Id="84" Count="1" />
+      <LineId Id="83" Count="0" />
+      <LineId Id="87" Count="0" />
+      <LineId Id="174" Count="4" />
+      <LineId Id="173" Count="0" />
+      <LineId Id="179" Count="0" />
+      <LineId Id="60" Count="0" />
+      <LineId Id="299" Count="0" />
+      <LineId Id="72" Count="0" />
+      <LineId Id="165" Count="0" />
+      <LineId Id="205" Count="0" />
+      <LineId Id="149" Count="1" />
+      <LineId Id="206" Count="1" />
+      <LineId Id="73" Count="1" />
+      <LineId Id="66" Count="0" />
+      <LineId Id="54" Count="0" />
+      <LineId Id="213" Count="0" />
+      <LineId Id="228" Count="1" />
+      <LineId Id="227" Count="0" />
+      <LineId Id="231" Count="0" />
+      <LineId Id="154" Count="1" />
+    </LineIds>
+    <LineIds Name="fb_RS485ComCheck.ac01_Send">
+      <LineId Id="32" Count="0" />
+      <LineId Id="307" Count="0" />
+      <LineId Id="31" Count="0" />
+      <LineId Id="2" Count="2" />
+      <LineId Id="184" Count="1" />
+      <LineId Id="5" Count="0" />
+      <LineId Id="188" Count="0" />
+      <LineId Id="358" Count="0" />
+      <LineId Id="481" Count="0" />
+      <LineId Id="7" Count="0" />
+      <LineId Id="347" Count="0" />
+      <LineId Id="9" Count="0" />
+      <LineId Id="487" Count="0" />
+      <LineId Id="349" Count="0" />
+      <LineId Id="10" Count="0" />
+      <LineId Id="421" Count="1" />
+      <LineId Id="425" Count="1" />
+      <LineId Id="11" Count="4" />
+      <LineId Id="151" Count="0" />
+      <LineId Id="444" Count="0" />
+      <LineId Id="455" Count="0" />
+      <LineId Id="446" Count="0" />
+      <LineId Id="445" Count="0" />
+      <LineId Id="470" Count="9" />
+      <LineId Id="466" Count="0" />
+      <LineId Id="480" Count="0" />
+      <LineId Id="22" Count="2" />
+      <LineId Id="144" Count="0" />
+      <LineId Id="257" Count="0" />
+      <LineId Id="27" Count="0" />
+      <LineId Id="467" Count="0" />
+      <LineId Id="469" Count="0" />
+      <LineId Id="488" Count="0" />
+      <LineId Id="259" Count="0" />
+      <LineId Id="28" Count="0" />
+      <LineId Id="244" Count="2" />
+      <LineId Id="248" Count="0" />
+      <LineId Id="247" Count="0" />
+      <LineId Id="29" Count="0" />
+      <LineId Id="139" Count="0" />
+      <LineId Id="34" Count="1" />
+      <LineId Id="46" Count="0" />
+      <LineId Id="260" Count="0" />
+      <LineId Id="157" Count="0" />
+      <LineId Id="261" Count="0" />
+      <LineId Id="177" Count="0" />
+      <LineId Id="275" Count="3" />
+      <LineId Id="291" Count="0" />
+      <LineId Id="293" Count="2" />
+      <LineId Id="292" Count="0" />
+      <LineId Id="274" Count="0" />
+      <LineId Id="228" Count="0" />
+      <LineId Id="234" Count="0" />
+      <LineId Id="271" Count="0" />
+      <LineId Id="241" Count="0" />
+      <LineId Id="346" Count="0" />
+      <LineId Id="242" Count="0" />
+      <LineId Id="229" Count="0" />
+      <LineId Id="45" Count="0" />
+      <LineId Id="94" Count="0" />
+      <LineId Id="63" Count="0" />
+      <LineId Id="59" Count="0" />
+      <LineId Id="66" Count="0" />
+      <LineId Id="65" Count="0" />
+      <LineId Id="77" Count="0" />
+      <LineId Id="115" Count="0" />
+      <LineId Id="67" Count="0" />
+      <LineId Id="485" Count="0" />
+      <LineId Id="219" Count="0" />
+      <LineId Id="301" Count="0" />
+      <LineId Id="195" Count="0" />
+      <LineId Id="69" Count="0" />
+      <LineId Id="280" Count="2" />
+      <LineId Id="285" Count="2" />
+      <LineId Id="484" Count="0" />
+      <LineId Id="288" Count="1" />
+      <LineId Id="71" Count="0" />
+      <LineId Id="427" Count="5" />
+      <LineId Id="486" Count="0" />
+      <LineId Id="433" Count="0" />
+      <LineId Id="442" Count="0" />
+      <LineId Id="434" Count="1" />
+      <LineId Id="437" Count="1" />
+      <LineId Id="443" Count="0" />
+      <LineId Id="440" Count="1" />
+      <LineId Id="439" Count="0" />
+      <LineId Id="290" Count="0" />
+      <LineId Id="220" Count="1" />
+      <LineId Id="272" Count="0" />
+      <LineId Id="222" Count="0" />
+      <LineId Id="227" Count="0" />
+      <LineId Id="351" Count="0" />
+      <LineId Id="269" Count="0" />
+      <LineId Id="300" Count="0" />
+      <LineId Id="482" Count="0" />
+      <LineId Id="224" Count="0" />
+      <LineId Id="483" Count="0" />
+      <LineId Id="225" Count="1" />
+      <LineId Id="223" Count="0" />
+      <LineId Id="327" Count="0" />
+      <LineId Id="489" Count="4" />
+      <LineId Id="379" Count="0" />
+      <LineId Id="494" Count="0" />
+      <LineId Id="496" Count="0" />
+      <LineId Id="502" Count="0" />
+      <LineId Id="498" Count="1" />
+      <LineId Id="495" Count="0" />
+      <LineId Id="501" Count="0" />
+      <LineId Id="500" Count="0" />
+      <LineId Id="378" Count="0" />
+      <LineId Id="380" Count="0" />
+      <LineId Id="414" Count="0" />
+      <LineId Id="383" Count="1" />
+      <LineId Id="391" Count="0" />
+      <LineId Id="415" Count="2" />
+      <LineId Id="419" Count="0" />
+      <LineId Id="418" Count="0" />
+      <LineId Id="382" Count="0" />
+      <LineId Id="408" Count="0" />
+      <LineId Id="410" Count="3" />
+      <LineId Id="409" Count="0" />
+      <LineId Id="392" Count="0" />
+      <LineId Id="400" Count="0" />
+      <LineId Id="394" Count="2" />
+      <LineId Id="398" Count="0" />
+      <LineId Id="393" Count="0" />
+      <LineId Id="401" Count="0" />
+      <LineId Id="403" Count="3" />
+      <LineId Id="402" Count="0" />
+      <LineId Id="381" Count="0" />
+      <LineId Id="365" Count="0" />
+      <LineId Id="330" Count="0" />
+      <LineId Id="337" Count="0" />
+      <LineId Id="83" Count="0" />
+      <LineId Id="82" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>

@@ -1,0 +1,579 @@
+<?xml version="1.0"?>
+<TcSmProject xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.beckhoff.com/schemas/2012/07/TcSmProject" TcSmVersion="1.0" TcVersion="3.1.4024.53">
+	<DataTypes>
+		<DataType>
+			<Name GUID="{F13B6D04-11D0-5217-2BF9-7A8308D2316E}" Namespace="Tc2_SerialCom" AutoDeleteType="true">KL6inData22B</Name>
+			<Comment><![CDATA[ This data type is corresponding to the
+   KL-6xxx data structure used in the
+   TwinCAT SystemManager
+   (KL-6xxx version using 22 data bytes) 
+]]></Comment>
+			<BitSize>192</BitSize>
+			<SubItem>
+				<Name>Status</Name>
+				<Type GUID="{18071995-0000-0000-0000-000000000004}">WORD</Type>
+				<BitSize>16</BitSize>
+				<BitOffs>0</BitOffs>
+			</SubItem>
+			<SubItem>
+				<Name>D</Name>
+				<Type GUID="{18071995-0000-0000-0000-000000000001}">BYTE</Type>
+				<ArrayInfo>
+					<LBound>0</LBound>
+					<Elements>22</Elements>
+				</ArrayInfo>
+				<BitSize>176</BitSize>
+				<BitOffs>16</BitOffs>
+			</SubItem>
+		</DataType>
+		<DataType>
+			<Name GUID="{93239C5F-8743-C1B9-CEA8-EA43A1EB5E4D}" Namespace="Tc2_SerialCom" AutoDeleteType="true">KL6outData22B</Name>
+			<Comment><![CDATA[ This data type is corresponding to the
+   KL-6xxx data structure used in the
+   TwinCAT SystemManager
+   (KL-6xxx version using 22 data bytes) 
+]]></Comment>
+			<BitSize>192</BitSize>
+			<SubItem>
+				<Name>Ctrl</Name>
+				<Type GUID="{18071995-0000-0000-0000-000000000004}">WORD</Type>
+				<BitSize>16</BitSize>
+				<BitOffs>0</BitOffs>
+			</SubItem>
+			<SubItem>
+				<Name>D</Name>
+				<Type GUID="{18071995-0000-0000-0000-000000000001}">BYTE</Type>
+				<ArrayInfo>
+					<LBound>0</LBound>
+					<Elements>22</Elements>
+				</ArrayInfo>
+				<BitSize>176</BitSize>
+				<BitOffs>16</BitOffs>
+			</SubItem>
+		</DataType>
+	</DataTypes>
+	<ImageDatas>
+		<ImageData Id="1000">424de6000000000000007600000028000000100000000e000000010004000000000070000000c40e0000c40e0000100000001000000000000000ff0000000084000084848400c6c6c6000000ff00ff00ff0000ffff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff00ffffff0066333333333336666644444340403666664004434747366666405443444436666640044340403666664004434141366666400453444436666640042340403666664444444545366600044544444436660644454440403666004555554444366606444544424236660004454444443666</ImageData>
+	</ImageDatas>
+	<Project ProjectGUID="{CDFF98BA-45FB-4C37-9C31-72D7DEED5CD6}" TargetNetId="10.12.59.45.1.1" ShowHideConfigurations="#x6">
+		<System>
+			<Licenses>
+				<Target>
+					<ManualSelect>{BCA6EE0A-9CE1-4D3F-98CA-413ABC0D94FD}</ManualSelect>
+					<ManualSelect>{A1AF8A04-C08D-4853-A5A0-0E6C3A278A8C}</ManualSelect>
+				</Target>
+			</Licenses>
+			<Tasks>
+				<Task Id="3" Priority="20" CycleTime="10000" AmsPort="350" AdtTasks="true">
+					<Name>PlcTask</Name>
+				</Task>
+			</Tasks>
+		</System>
+		<Plc>
+			<Project GUID="{B5DF68DD-93BD-4F54-AFC9-3AA000FD7B3F}" Name="RS485_HausBus" PrjFilePath="RS485_HausBus\RS485_HausBus.plcproj" TmcFilePath="RS485_HausBus\RS485_HausBus.tmc" ReloadTmc="true" AmsPort="851" FileArchiveSettings="#x000e" SymbolicMapping="true">
+				<Instance Id="#x08502000" TcSmClass="TComPlcObjDef" KeepUnrestoredLinks="2" TmcPath="RS485_HausBus\RS485_HausBus.tmc" TmcHash="{553CDE24-C704-5F53-47EC-208580D1EFB6}">
+					<Name>RS485_HausBus Instance</Name>
+					<CLSID ClassFactory="TcPlc30">{08500001-0000-0000-F000-000000000064}</CLSID>
+					<Vars VarGrpType="1">
+						<Name>PlcTask Inputs</Name>
+						<Var>
+							<Name>.uiEtherCATStateBK1120_RS485COM</Name>
+							<Comment><![CDATA[ EtherCAT Status ]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.uiKBusStateBK1120_RS485COM</Name>
+							<Comment><![CDATA[ Buskoppler Status]]></Comment>
+							<Type>UINT</Type>
+						</Var>
+						<Var>
+							<Name>.KL6041In</Name>
+							<Comment><![CDATA[ Eingangsdaten von der Klemme]]></Comment>
+							<Type GUID="{F13B6D04-11D0-5217-2BF9-7A8308D2316E}" Namespace="Tc2_SerialCom">KL6inData22B</Type>
+						</Var>
+					</Vars>
+					<Vars VarGrpType="2" AreaNo="1">
+						<Name>PlcTask Outputs</Name>
+						<Var>
+							<Name>.KL6041Out</Name>
+							<Comment><![CDATA[ Ausgangsdaten zur Klemme]]></Comment>
+							<Type GUID="{93239C5F-8743-C1B9-CEA8-EA43A1EB5E4D}" Namespace="Tc2_SerialCom">KL6outData22B</Type>
+						</Var>
+					</Vars>
+					<UnrestoredVarLinks ImportTime="2025-04-30T12:56:42">
+						<OwnerA Name="InputDst" Prefix="TIPC^ModbusRTU_RS485^ModbusRTU_RS485 Instance" Type="1">
+							<OwnerB Name="TIID^Device 2 (EtherCAT)^Box 1 (BK1120)">
+								<Link VarA=".KL6041In[0]" TypeA="BYTE" InOutA="0" GuidA="{18071995-0000-0000-0000-000000000001}" VarB="Term 2 (KL6041)^Channel 1^Data In 0" RestoreInfo="TypeMismatch" OldTypeA="BYTE" OldGuidA="{18071995-0000-0000-0000-000000000001}" NewTypeA="Tc2_SerialCom.KL6inData22B" NewGuidA="{F13B6D04-11D0-5217-2BF9-7A8308D2316E}"/>
+								<Link VarA=".KL6041In[10]" TypeA="BYTE" InOutA="0" GuidA="{18071995-0000-0000-0000-000000000001}" VarB="Term 2 (KL6041)^Channel 1^Data In 10" RestoreInfo="TypeMismatch" OldTypeA="BYTE" OldGuidA="{18071995-0000-0000-0000-000000000001}" NewTypeA="Tc2_SerialCom.KL6inData22B" NewGuidA="{F13B6D04-11D0-5217-2BF9-7A8308D2316E}"/>
+								<Link VarA=".KL6041In[11]" TypeA="BYTE" InOutA="0" GuidA="{18071995-0000-0000-0000-000000000001}" VarB="Term 2 (KL6041)^Channel 1^Data In 11" RestoreInfo="TypeMismatch" OldTypeA="BYTE" OldGuidA="{18071995-0000-0000-0000-000000000001}" NewTypeA="Tc2_SerialCom.KL6inData22B" NewGuidA="{F13B6D04-11D0-5217-2BF9-7A8308D2316E}"/>
+								<Link VarA=".KL6041In[12]" TypeA="BYTE" InOutA="0" GuidA="{18071995-0000-0000-0000-000000000001}" VarB="Term 2 (KL6041)^Channel 1^Data In 12" RestoreInfo="TypeMismatch" OldTypeA="BYTE" OldGuidA="{18071995-0000-0000-0000-000000000001}" NewTypeA="Tc2_SerialCom.KL6inData22B" NewGuidA="{F13B6D04-11D0-5217-2BF9-7A8308D2316E}"/>
+								<Link VarA=".KL6041In[13]" TypeA="BYTE" InOutA="0" GuidA="{18071995-0000-0000-0000-000000000001}" VarB="Term 2 (KL6041)^Channel 1^Data In 13" RestoreInfo="TypeMismatch" OldTypeA="BYTE" OldGuidA="{18071995-0000-0000-0000-000000000001}" NewTypeA="Tc2_SerialCom.KL6inData22B" NewGuidA="{F13B6D04-11D0-5217-2BF9-7A8308D2316E}"/>
+								<Link VarA=".KL6041In[14]" TypeA="BYTE" InOutA="0" GuidA="{18071995-0000-0000-0000-000000000001}" VarB="Term 2 (KL6041)^Channel 1^Data In 14" RestoreInfo="TypeMismatch" OldTypeA="BYTE" OldGuidA="{18071995-0000-0000-0000-000000000001}" NewTypeA="Tc2_SerialCom.KL6inData22B" NewGuidA="{F13B6D04-11D0-5217-2BF9-7A8308D2316E}"/>
+								<Link VarA=".KL6041In[15]" TypeA="BYTE" InOutA="0" GuidA="{18071995-0000-0000-0000-000000000001}" VarB="Term 2 (KL6041)^Channel 1^Data In 15" RestoreInfo="TypeMismatch" OldTypeA="BYTE" OldGuidA="{18071995-0000-0000-0000-000000000001}" NewTypeA="Tc2_SerialCom.KL6inData22B" NewGuidA="{F13B6D04-11D0-5217-2BF9-7A8308D2316E}"/>
+								<Link VarA=".KL6041In[16]" TypeA="BYTE" InOutA="0" GuidA="{18071995-0000-0000-0000-000000000001}" VarB="Term 2 (KL6041)^Channel 1^Data In 16" RestoreInfo="TypeMismatch" OldTypeA="BYTE" OldGuidA="{18071995-0000-0000-0000-000000000001}" NewTypeA="Tc2_SerialCom.KL6inData22B" NewGuidA="{F13B6D04-11D0-5217-2BF9-7A8308D2316E}"/>
+								<Link VarA=".KL6041In[17]" TypeA="BYTE" InOutA="0" GuidA="{18071995-0000-0000-0000-000000000001}" VarB="Term 2 (KL6041)^Channel 1^Data In 17" RestoreInfo="TypeMismatch" OldTypeA="BYTE" OldGuidA="{18071995-0000-0000-0000-000000000001}" NewTypeA="Tc2_SerialCom.KL6inData22B" NewGuidA="{F13B6D04-11D0-5217-2BF9-7A8308D2316E}"/>
+								<Link VarA=".KL6041In[18]" TypeA="BYTE" InOutA="0" GuidA="{18071995-0000-0000-0000-000000000001}" VarB="Term 2 (KL6041)^Channel 1^Data In 18" RestoreInfo="TypeMismatch" OldTypeA="BYTE" OldGuidA="{18071995-0000-0000-0000-000000000001}" NewTypeA="Tc2_SerialCom.KL6inData22B" NewGuidA="{F13B6D04-11D0-5217-2BF9-7A8308D2316E}"/>
+								<Link VarA=".KL6041In[19]" TypeA="BYTE" InOutA="0" GuidA="{18071995-0000-0000-0000-000000000001}" VarB="Term 2 (KL6041)^Channel 1^Data In 19" RestoreInfo="TypeMismatch" OldTypeA="BYTE" OldGuidA="{18071995-0000-0000-0000-000000000001}" NewTypeA="Tc2_SerialCom.KL6inData22B" NewGuidA="{F13B6D04-11D0-5217-2BF9-7A8308D2316E}"/>
+								<Link VarA=".KL6041In[1]" TypeA="BYTE" InOutA="0" GuidA="{18071995-0000-0000-0000-000000000001}" VarB="Term 2 (KL6041)^Channel 1^Data In 1" RestoreInfo="TypeMismatch" OldTypeA="BYTE" OldGuidA="{18071995-0000-0000-0000-000000000001}" NewTypeA="Tc2_SerialCom.KL6inData22B" NewGuidA="{F13B6D04-11D0-5217-2BF9-7A8308D2316E}"/>
+								<Link VarA=".KL6041In[20]" TypeA="BYTE" InOutA="0" GuidA="{18071995-0000-0000-0000-000000000001}" VarB="Term 2 (KL6041)^Channel 1^Data In 20" RestoreInfo="TypeMismatch" OldTypeA="BYTE" OldGuidA="{18071995-0000-0000-0000-000000000001}" NewTypeA="Tc2_SerialCom.KL6inData22B" NewGuidA="{F13B6D04-11D0-5217-2BF9-7A8308D2316E}"/>
+								<Link VarA=".KL6041In[21]" TypeA="BYTE" InOutA="0" GuidA="{18071995-0000-0000-0000-000000000001}" VarB="Term 2 (KL6041)^Channel 1^Data In 21" RestoreInfo="TypeMismatch" OldTypeA="BYTE" OldGuidA="{18071995-0000-0000-0000-000000000001}" NewTypeA="Tc2_SerialCom.KL6inData22B" NewGuidA="{F13B6D04-11D0-5217-2BF9-7A8308D2316E}"/>
+								<Link VarA=".KL6041In[2]" TypeA="BYTE" InOutA="0" GuidA="{18071995-0000-0000-0000-000000000001}" VarB="Term 2 (KL6041)^Channel 1^Data In 2" RestoreInfo="TypeMismatch" OldTypeA="BYTE" OldGuidA="{18071995-0000-0000-0000-000000000001}" NewTypeA="Tc2_SerialCom.KL6inData22B" NewGuidA="{F13B6D04-11D0-5217-2BF9-7A8308D2316E}"/>
+								<Link VarA=".KL6041In[3]" TypeA="BYTE" InOutA="0" GuidA="{18071995-0000-0000-0000-000000000001}" VarB="Term 2 (KL6041)^Channel 1^Data In 3" RestoreInfo="TypeMismatch" OldTypeA="BYTE" OldGuidA="{18071995-0000-0000-0000-000000000001}" NewTypeA="Tc2_SerialCom.KL6inData22B" NewGuidA="{F13B6D04-11D0-5217-2BF9-7A8308D2316E}"/>
+								<Link VarA=".KL6041In[4]" TypeA="BYTE" InOutA="0" GuidA="{18071995-0000-0000-0000-000000000001}" VarB="Term 2 (KL6041)^Channel 1^Data In 4" RestoreInfo="TypeMismatch" OldTypeA="BYTE" OldGuidA="{18071995-0000-0000-0000-000000000001}" NewTypeA="Tc2_SerialCom.KL6inData22B" NewGuidA="{F13B6D04-11D0-5217-2BF9-7A8308D2316E}"/>
+								<Link VarA=".KL6041In[5]" TypeA="BYTE" InOutA="0" GuidA="{18071995-0000-0000-0000-000000000001}" VarB="Term 2 (KL6041)^Channel 1^Data In 5" RestoreInfo="TypeMismatch" OldTypeA="BYTE" OldGuidA="{18071995-0000-0000-0000-000000000001}" NewTypeA="Tc2_SerialCom.KL6inData22B" NewGuidA="{F13B6D04-11D0-5217-2BF9-7A8308D2316E}"/>
+								<Link VarA=".KL6041In[6]" TypeA="BYTE" InOutA="0" GuidA="{18071995-0000-0000-0000-000000000001}" VarB="Term 2 (KL6041)^Channel 1^Data In 6" RestoreInfo="TypeMismatch" OldTypeA="BYTE" OldGuidA="{18071995-0000-0000-0000-000000000001}" NewTypeA="Tc2_SerialCom.KL6inData22B" NewGuidA="{F13B6D04-11D0-5217-2BF9-7A8308D2316E}"/>
+								<Link VarA=".KL6041In[7]" TypeA="BYTE" InOutA="0" GuidA="{18071995-0000-0000-0000-000000000001}" VarB="Term 2 (KL6041)^Channel 1^Data In 7" RestoreInfo="TypeMismatch" OldTypeA="BYTE" OldGuidA="{18071995-0000-0000-0000-000000000001}" NewTypeA="Tc2_SerialCom.KL6inData22B" NewGuidA="{F13B6D04-11D0-5217-2BF9-7A8308D2316E}"/>
+								<Link VarA=".KL6041In[8]" TypeA="BYTE" InOutA="0" GuidA="{18071995-0000-0000-0000-000000000001}" VarB="Term 2 (KL6041)^Channel 1^Data In 8" RestoreInfo="TypeMismatch" OldTypeA="BYTE" OldGuidA="{18071995-0000-0000-0000-000000000001}" NewTypeA="Tc2_SerialCom.KL6inData22B" NewGuidA="{F13B6D04-11D0-5217-2BF9-7A8308D2316E}"/>
+								<Link VarA=".KL6041In[9]" TypeA="BYTE" InOutA="0" GuidA="{18071995-0000-0000-0000-000000000001}" VarB="Term 2 (KL6041)^Channel 1^Data In 9" RestoreInfo="TypeMismatch" OldTypeA="BYTE" OldGuidA="{18071995-0000-0000-0000-000000000001}" NewTypeA="Tc2_SerialCom.KL6inData22B" NewGuidA="{F13B6D04-11D0-5217-2BF9-7A8308D2316E}"/>
+								<Link VarA=".KL6041Status" TypeA="UINT" InOutA="0" GuidA="{18071995-0000-0000-0000-000000000005}" VarB="Term 2 (KL6041)^Channel 1^Status" RestoreInfo="ANotFound"/>
+							</OwnerB>
+						</OwnerA>
+						<OwnerA Name="OutputSrc" Prefix="TIPC^ModbusRTU_RS485^ModbusRTU_RS485 Instance" Type="2">
+							<OwnerB Name="TIID^Device 2 (EtherCAT)^Box 1 (BK1120)">
+								<Link VarA=".KL6041Ctrl" TypeA="UINT" InOutA="1" GuidA="{18071995-0000-0000-0000-000000000005}" VarB="Term 2 (KL6041)^Channel 1^Ctrl" RestoreInfo="ANotFound"/>
+								<Link VarA=".KL6041Out[0]" TypeA="BYTE" InOutA="1" GuidA="{18071995-0000-0000-0000-000000000001}" VarB="Term 2 (KL6041)^Channel 1^Data Out 0" RestoreInfo="TypeMismatch" OldTypeA="BYTE" OldGuidA="{18071995-0000-0000-0000-000000000001}" NewTypeA="Tc2_SerialCom.KL6outData22B" NewGuidA="{93239C5F-8743-C1B9-CEA8-EA43A1EB5E4D}"/>
+								<Link VarA=".KL6041Out[10]" TypeA="BYTE" InOutA="1" GuidA="{18071995-0000-0000-0000-000000000001}" VarB="Term 2 (KL6041)^Channel 1^Data Out 10" RestoreInfo="TypeMismatch" OldTypeA="BYTE" OldGuidA="{18071995-0000-0000-0000-000000000001}" NewTypeA="Tc2_SerialCom.KL6outData22B" NewGuidA="{93239C5F-8743-C1B9-CEA8-EA43A1EB5E4D}"/>
+								<Link VarA=".KL6041Out[11]" TypeA="BYTE" InOutA="1" GuidA="{18071995-0000-0000-0000-000000000001}" VarB="Term 2 (KL6041)^Channel 1^Data Out 11" RestoreInfo="TypeMismatch" OldTypeA="BYTE" OldGuidA="{18071995-0000-0000-0000-000000000001}" NewTypeA="Tc2_SerialCom.KL6outData22B" NewGuidA="{93239C5F-8743-C1B9-CEA8-EA43A1EB5E4D}"/>
+								<Link VarA=".KL6041Out[12]" TypeA="BYTE" InOutA="1" GuidA="{18071995-0000-0000-0000-000000000001}" VarB="Term 2 (KL6041)^Channel 1^Data Out 12" RestoreInfo="TypeMismatch" OldTypeA="BYTE" OldGuidA="{18071995-0000-0000-0000-000000000001}" NewTypeA="Tc2_SerialCom.KL6outData22B" NewGuidA="{93239C5F-8743-C1B9-CEA8-EA43A1EB5E4D}"/>
+								<Link VarA=".KL6041Out[13]" TypeA="BYTE" InOutA="1" GuidA="{18071995-0000-0000-0000-000000000001}" VarB="Term 2 (KL6041)^Channel 1^Data Out 13" RestoreInfo="TypeMismatch" OldTypeA="BYTE" OldGuidA="{18071995-0000-0000-0000-000000000001}" NewTypeA="Tc2_SerialCom.KL6outData22B" NewGuidA="{93239C5F-8743-C1B9-CEA8-EA43A1EB5E4D}"/>
+								<Link VarA=".KL6041Out[14]" TypeA="BYTE" InOutA="1" GuidA="{18071995-0000-0000-0000-000000000001}" VarB="Term 2 (KL6041)^Channel 1^Data Out 14" RestoreInfo="TypeMismatch" OldTypeA="BYTE" OldGuidA="{18071995-0000-0000-0000-000000000001}" NewTypeA="Tc2_SerialCom.KL6outData22B" NewGuidA="{93239C5F-8743-C1B9-CEA8-EA43A1EB5E4D}"/>
+								<Link VarA=".KL6041Out[15]" TypeA="BYTE" InOutA="1" GuidA="{18071995-0000-0000-0000-000000000001}" VarB="Term 2 (KL6041)^Channel 1^Data Out 15" RestoreInfo="TypeMismatch" OldTypeA="BYTE" OldGuidA="{18071995-0000-0000-0000-000000000001}" NewTypeA="Tc2_SerialCom.KL6outData22B" NewGuidA="{93239C5F-8743-C1B9-CEA8-EA43A1EB5E4D}"/>
+								<Link VarA=".KL6041Out[16]" TypeA="BYTE" InOutA="1" GuidA="{18071995-0000-0000-0000-000000000001}" VarB="Term 2 (KL6041)^Channel 1^Data Out 16" RestoreInfo="TypeMismatch" OldTypeA="BYTE" OldGuidA="{18071995-0000-0000-0000-000000000001}" NewTypeA="Tc2_SerialCom.KL6outData22B" NewGuidA="{93239C5F-8743-C1B9-CEA8-EA43A1EB5E4D}"/>
+								<Link VarA=".KL6041Out[17]" TypeA="BYTE" InOutA="1" GuidA="{18071995-0000-0000-0000-000000000001}" VarB="Term 2 (KL6041)^Channel 1^Data Out 17" RestoreInfo="TypeMismatch" OldTypeA="BYTE" OldGuidA="{18071995-0000-0000-0000-000000000001}" NewTypeA="Tc2_SerialCom.KL6outData22B" NewGuidA="{93239C5F-8743-C1B9-CEA8-EA43A1EB5E4D}"/>
+								<Link VarA=".KL6041Out[18]" TypeA="BYTE" InOutA="1" GuidA="{18071995-0000-0000-0000-000000000001}" VarB="Term 2 (KL6041)^Channel 1^Data Out 18" RestoreInfo="TypeMismatch" OldTypeA="BYTE" OldGuidA="{18071995-0000-0000-0000-000000000001}" NewTypeA="Tc2_SerialCom.KL6outData22B" NewGuidA="{93239C5F-8743-C1B9-CEA8-EA43A1EB5E4D}"/>
+								<Link VarA=".KL6041Out[19]" TypeA="BYTE" InOutA="1" GuidA="{18071995-0000-0000-0000-000000000001}" VarB="Term 2 (KL6041)^Channel 1^Data Out 19" RestoreInfo="TypeMismatch" OldTypeA="BYTE" OldGuidA="{18071995-0000-0000-0000-000000000001}" NewTypeA="Tc2_SerialCom.KL6outData22B" NewGuidA="{93239C5F-8743-C1B9-CEA8-EA43A1EB5E4D}"/>
+								<Link VarA=".KL6041Out[1]" TypeA="BYTE" InOutA="1" GuidA="{18071995-0000-0000-0000-000000000001}" VarB="Term 2 (KL6041)^Channel 1^Data Out 1" RestoreInfo="TypeMismatch" OldTypeA="BYTE" OldGuidA="{18071995-0000-0000-0000-000000000001}" NewTypeA="Tc2_SerialCom.KL6outData22B" NewGuidA="{93239C5F-8743-C1B9-CEA8-EA43A1EB5E4D}"/>
+								<Link VarA=".KL6041Out[20]" TypeA="BYTE" InOutA="1" GuidA="{18071995-0000-0000-0000-000000000001}" VarB="Term 2 (KL6041)^Channel 1^Data Out 20" RestoreInfo="TypeMismatch" OldTypeA="BYTE" OldGuidA="{18071995-0000-0000-0000-000000000001}" NewTypeA="Tc2_SerialCom.KL6outData22B" NewGuidA="{93239C5F-8743-C1B9-CEA8-EA43A1EB5E4D}"/>
+								<Link VarA=".KL6041Out[21]" TypeA="BYTE" InOutA="1" GuidA="{18071995-0000-0000-0000-000000000001}" VarB="Term 2 (KL6041)^Channel 1^Data Out 21" RestoreInfo="TypeMismatch" OldTypeA="BYTE" OldGuidA="{18071995-0000-0000-0000-000000000001}" NewTypeA="Tc2_SerialCom.KL6outData22B" NewGuidA="{93239C5F-8743-C1B9-CEA8-EA43A1EB5E4D}"/>
+								<Link VarA=".KL6041Out[2]" TypeA="BYTE" InOutA="1" GuidA="{18071995-0000-0000-0000-000000000001}" VarB="Term 2 (KL6041)^Channel 1^Data Out 2" RestoreInfo="TypeMismatch" OldTypeA="BYTE" OldGuidA="{18071995-0000-0000-0000-000000000001}" NewTypeA="Tc2_SerialCom.KL6outData22B" NewGuidA="{93239C5F-8743-C1B9-CEA8-EA43A1EB5E4D}"/>
+								<Link VarA=".KL6041Out[3]" TypeA="BYTE" InOutA="1" GuidA="{18071995-0000-0000-0000-000000000001}" VarB="Term 2 (KL6041)^Channel 1^Data Out 3" RestoreInfo="TypeMismatch" OldTypeA="BYTE" OldGuidA="{18071995-0000-0000-0000-000000000001}" NewTypeA="Tc2_SerialCom.KL6outData22B" NewGuidA="{93239C5F-8743-C1B9-CEA8-EA43A1EB5E4D}"/>
+								<Link VarA=".KL6041Out[4]" TypeA="BYTE" InOutA="1" GuidA="{18071995-0000-0000-0000-000000000001}" VarB="Term 2 (KL6041)^Channel 1^Data Out 4" RestoreInfo="TypeMismatch" OldTypeA="BYTE" OldGuidA="{18071995-0000-0000-0000-000000000001}" NewTypeA="Tc2_SerialCom.KL6outData22B" NewGuidA="{93239C5F-8743-C1B9-CEA8-EA43A1EB5E4D}"/>
+								<Link VarA=".KL6041Out[5]" TypeA="BYTE" InOutA="1" GuidA="{18071995-0000-0000-0000-000000000001}" VarB="Term 2 (KL6041)^Channel 1^Data Out 5" RestoreInfo="TypeMismatch" OldTypeA="BYTE" OldGuidA="{18071995-0000-0000-0000-000000000001}" NewTypeA="Tc2_SerialCom.KL6outData22B" NewGuidA="{93239C5F-8743-C1B9-CEA8-EA43A1EB5E4D}"/>
+								<Link VarA=".KL6041Out[6]" TypeA="BYTE" InOutA="1" GuidA="{18071995-0000-0000-0000-000000000001}" VarB="Term 2 (KL6041)^Channel 1^Data Out 6" RestoreInfo="TypeMismatch" OldTypeA="BYTE" OldGuidA="{18071995-0000-0000-0000-000000000001}" NewTypeA="Tc2_SerialCom.KL6outData22B" NewGuidA="{93239C5F-8743-C1B9-CEA8-EA43A1EB5E4D}"/>
+								<Link VarA=".KL6041Out[7]" TypeA="BYTE" InOutA="1" GuidA="{18071995-0000-0000-0000-000000000001}" VarB="Term 2 (KL6041)^Channel 1^Data Out 7" RestoreInfo="TypeMismatch" OldTypeA="BYTE" OldGuidA="{18071995-0000-0000-0000-000000000001}" NewTypeA="Tc2_SerialCom.KL6outData22B" NewGuidA="{93239C5F-8743-C1B9-CEA8-EA43A1EB5E4D}"/>
+								<Link VarA=".KL6041Out[8]" TypeA="BYTE" InOutA="1" GuidA="{18071995-0000-0000-0000-000000000001}" VarB="Term 2 (KL6041)^Channel 1^Data Out 8" RestoreInfo="TypeMismatch" OldTypeA="BYTE" OldGuidA="{18071995-0000-0000-0000-000000000001}" NewTypeA="Tc2_SerialCom.KL6outData22B" NewGuidA="{93239C5F-8743-C1B9-CEA8-EA43A1EB5E4D}"/>
+								<Link VarA=".KL6041Out[9]" TypeA="BYTE" InOutA="1" GuidA="{18071995-0000-0000-0000-000000000001}" VarB="Term 2 (KL6041)^Channel 1^Data Out 9" RestoreInfo="TypeMismatch" OldTypeA="BYTE" OldGuidA="{18071995-0000-0000-0000-000000000001}" NewTypeA="Tc2_SerialCom.KL6outData22B" NewGuidA="{93239C5F-8743-C1B9-CEA8-EA43A1EB5E4D}"/>
+							</OwnerB>
+						</OwnerA>
+					</UnrestoredVarLinks>
+					<Contexts>
+						<Context>
+							<Id>0</Id>
+							<Name>PlcTask</Name>
+							<ManualConfig>
+								<OTCID>#x02010030</OTCID>
+							</ManualConfig>
+							<Priority>20</Priority>
+							<CycleTime>1000000</CycleTime>
+						</Context>
+					</Contexts>
+					<TaskPouOids>
+						<TaskPouOid Prio="20" OTCID="#x08502001"/>
+					</TaskPouOids>
+				</Instance>
+			</Project>
+		</Plc>
+		<Io>
+			<Device Id="2" DevType="111" DevFlags="#x0003" AmsPort="28674" AmsNetId="192.168.178.76.3.1" RemoteName="Gerät 2 (EtherCAT)" InfoImageId="2">
+				<Name>Gerät 2 (EtherCAT)</Name>
+				<AddressInfo>
+					<Pnp>
+						<DeviceDesc>LAN-Verbindung 2 (TwinCAT-Intel PCI Ethernet Adapte</DeviceDesc>
+						<DeviceName>\DEVICE\{8C3BB59A-8BBE-44FF-9B75-FC24D398FCBA}</DeviceName>
+						<DeviceData>0001052ce2f3</DeviceData>
+					</Pnp>
+				</AddressInfo>
+				<Image Id="1" AddrType="9" ImageType="3">
+					<Name>Prozessabbild</Name>
+				</Image>
+				<Box Id="1" BoxType="9081" AmsPort="28928">
+					<Name>Box 1 (BK1120)</Name>
+					<ImageId>1000</ImageId>
+					<Vars VarGrpType="1">
+						<Name>Eingänge</Name>
+						<Var>
+							<Name>CouplerState</Name>
+							<Comment><![CDATA[0x0000 = No error
+0x0001 = K-Bus error
+0x0002 = Configuration error
+0x0010 = Outputs disabled
+0x0020 = K-Bus overrun
+0x0040 = Communication error (Inputs)
+0x0080 = Communication error (Outputs)
+]]></Comment>
+							<Type>UINT</Type>
+							<BitOffs>208</BitOffs>
+						</Var>
+					</Vars>
+					<Vars VarGrpType="2">
+						<Name>Ausgänge</Name>
+						<Var>
+							<Name>CouplerCtrl</Name>
+							<Comment><![CDATA[0x0010 = Disable outputs
+0x0020 = Show K-Bus overrun
+]]></Comment>
+							<Type>UINT</Type>
+							<BitOffs>208</BitOffs>
+						</Var>
+					</Vars>
+					<BusCoupler ComplexTermSupport="true" NewHardware="true">
+						<Flags SupportVirtualTerms="true"/>
+						<Term Id="2" TermType="#x6001799" Fieldbus="7">
+							<Name>Klemme 2 (KL6041)</Name>
+							<ImageId>32</ImageId>
+							<Vars VarGrpType="3">
+								<Name>Kanal 1</Name>
+								<Var>
+									<Name>Status</Name>
+									<Type>UINT</Type>
+									<BitOffs>224</BitOffs>
+									<InOut>0</InOut>
+								</Var>
+								<Var>
+									<Name>Data In 0</Name>
+									<Type>USINT</Type>
+									<BitOffs>240</BitOffs>
+									<InOut>0</InOut>
+								</Var>
+								<Var>
+									<Name>Data In 1</Name>
+									<Type>USINT</Type>
+									<BitOffs>248</BitOffs>
+									<InOut>0</InOut>
+								</Var>
+								<Var>
+									<Name>Data In 2</Name>
+									<Type>USINT</Type>
+									<BitOffs>256</BitOffs>
+									<InOut>0</InOut>
+								</Var>
+								<Var>
+									<Name>Data In 3</Name>
+									<Type>USINT</Type>
+									<BitOffs>264</BitOffs>
+									<InOut>0</InOut>
+								</Var>
+								<Var>
+									<Name>Data In 4</Name>
+									<Type>USINT</Type>
+									<BitOffs>272</BitOffs>
+									<InOut>0</InOut>
+								</Var>
+								<Var>
+									<Name>Data In 5</Name>
+									<Type>USINT</Type>
+									<BitOffs>280</BitOffs>
+									<InOut>0</InOut>
+								</Var>
+								<Var>
+									<Name>Data In 6</Name>
+									<Type>USINT</Type>
+									<BitOffs>288</BitOffs>
+									<InOut>0</InOut>
+								</Var>
+								<Var>
+									<Name>Data In 7</Name>
+									<Type>USINT</Type>
+									<BitOffs>296</BitOffs>
+									<InOut>0</InOut>
+								</Var>
+								<Var>
+									<Name>Data In 8</Name>
+									<Type>USINT</Type>
+									<BitOffs>304</BitOffs>
+									<InOut>0</InOut>
+								</Var>
+								<Var>
+									<Name>Data In 9</Name>
+									<Type>USINT</Type>
+									<BitOffs>312</BitOffs>
+									<InOut>0</InOut>
+								</Var>
+								<Var>
+									<Name>Data In 10</Name>
+									<Type>USINT</Type>
+									<BitOffs>320</BitOffs>
+									<InOut>0</InOut>
+								</Var>
+								<Var>
+									<Name>Data In 11</Name>
+									<Type>USINT</Type>
+									<BitOffs>328</BitOffs>
+									<InOut>0</InOut>
+								</Var>
+								<Var>
+									<Name>Data In 12</Name>
+									<Type>USINT</Type>
+									<BitOffs>336</BitOffs>
+									<InOut>0</InOut>
+								</Var>
+								<Var>
+									<Name>Data In 13</Name>
+									<Type>USINT</Type>
+									<BitOffs>344</BitOffs>
+									<InOut>0</InOut>
+								</Var>
+								<Var>
+									<Name>Data In 14</Name>
+									<Type>USINT</Type>
+									<BitOffs>352</BitOffs>
+									<InOut>0</InOut>
+								</Var>
+								<Var>
+									<Name>Data In 15</Name>
+									<Type>USINT</Type>
+									<BitOffs>360</BitOffs>
+									<InOut>0</InOut>
+								</Var>
+								<Var>
+									<Name>Data In 16</Name>
+									<Type>USINT</Type>
+									<BitOffs>368</BitOffs>
+									<InOut>0</InOut>
+								</Var>
+								<Var>
+									<Name>Data In 17</Name>
+									<Type>USINT</Type>
+									<BitOffs>376</BitOffs>
+									<InOut>0</InOut>
+								</Var>
+								<Var>
+									<Name>Data In 18</Name>
+									<Type>USINT</Type>
+									<BitOffs>384</BitOffs>
+									<InOut>0</InOut>
+								</Var>
+								<Var>
+									<Name>Data In 19</Name>
+									<Type>USINT</Type>
+									<BitOffs>392</BitOffs>
+									<InOut>0</InOut>
+								</Var>
+								<Var>
+									<Name>Data In 20</Name>
+									<Type>USINT</Type>
+									<BitOffs>400</BitOffs>
+									<InOut>0</InOut>
+								</Var>
+								<Var>
+									<Name>Data In 21</Name>
+									<Type>USINT</Type>
+									<BitOffs>408</BitOffs>
+									<InOut>0</InOut>
+								</Var>
+								<Var>
+									<Name>Ctrl</Name>
+									<Type>UINT</Type>
+									<BitOffs>224</BitOffs>
+									<InOut>1</InOut>
+								</Var>
+								<Var>
+									<Name>Data Out 0</Name>
+									<Type>USINT</Type>
+									<BitOffs>240</BitOffs>
+									<InOut>1</InOut>
+								</Var>
+								<Var>
+									<Name>Data Out 1</Name>
+									<Type>USINT</Type>
+									<BitOffs>248</BitOffs>
+									<InOut>1</InOut>
+								</Var>
+								<Var>
+									<Name>Data Out 2</Name>
+									<Type>USINT</Type>
+									<BitOffs>256</BitOffs>
+									<InOut>1</InOut>
+								</Var>
+								<Var>
+									<Name>Data Out 3</Name>
+									<Type>USINT</Type>
+									<BitOffs>264</BitOffs>
+									<InOut>1</InOut>
+								</Var>
+								<Var>
+									<Name>Data Out 4</Name>
+									<Type>USINT</Type>
+									<BitOffs>272</BitOffs>
+									<InOut>1</InOut>
+								</Var>
+								<Var>
+									<Name>Data Out 5</Name>
+									<Type>USINT</Type>
+									<BitOffs>280</BitOffs>
+									<InOut>1</InOut>
+								</Var>
+								<Var>
+									<Name>Data Out 6</Name>
+									<Type>USINT</Type>
+									<BitOffs>288</BitOffs>
+									<InOut>1</InOut>
+								</Var>
+								<Var>
+									<Name>Data Out 7</Name>
+									<Type>USINT</Type>
+									<BitOffs>296</BitOffs>
+									<InOut>1</InOut>
+								</Var>
+								<Var>
+									<Name>Data Out 8</Name>
+									<Type>USINT</Type>
+									<BitOffs>304</BitOffs>
+									<InOut>1</InOut>
+								</Var>
+								<Var>
+									<Name>Data Out 9</Name>
+									<Type>USINT</Type>
+									<BitOffs>312</BitOffs>
+									<InOut>1</InOut>
+								</Var>
+								<Var>
+									<Name>Data Out 10</Name>
+									<Type>USINT</Type>
+									<BitOffs>320</BitOffs>
+									<InOut>1</InOut>
+								</Var>
+								<Var>
+									<Name>Data Out 11</Name>
+									<Type>USINT</Type>
+									<BitOffs>328</BitOffs>
+									<InOut>1</InOut>
+								</Var>
+								<Var>
+									<Name>Data Out 12</Name>
+									<Type>USINT</Type>
+									<BitOffs>336</BitOffs>
+									<InOut>1</InOut>
+								</Var>
+								<Var>
+									<Name>Data Out 13</Name>
+									<Type>USINT</Type>
+									<BitOffs>344</BitOffs>
+									<InOut>1</InOut>
+								</Var>
+								<Var>
+									<Name>Data Out 14</Name>
+									<Type>USINT</Type>
+									<BitOffs>352</BitOffs>
+									<InOut>1</InOut>
+								</Var>
+								<Var>
+									<Name>Data Out 15</Name>
+									<Type>USINT</Type>
+									<BitOffs>360</BitOffs>
+									<InOut>1</InOut>
+								</Var>
+								<Var>
+									<Name>Data Out 16</Name>
+									<Type>USINT</Type>
+									<BitOffs>368</BitOffs>
+									<InOut>1</InOut>
+								</Var>
+								<Var>
+									<Name>Data Out 17</Name>
+									<Type>USINT</Type>
+									<BitOffs>376</BitOffs>
+									<InOut>1</InOut>
+								</Var>
+								<Var>
+									<Name>Data Out 18</Name>
+									<Type>USINT</Type>
+									<BitOffs>384</BitOffs>
+									<InOut>1</InOut>
+								</Var>
+								<Var>
+									<Name>Data Out 19</Name>
+									<Type>USINT</Type>
+									<BitOffs>392</BitOffs>
+									<InOut>1</InOut>
+								</Var>
+								<Var>
+									<Name>Data Out 20</Name>
+									<Type>USINT</Type>
+									<BitOffs>400</BitOffs>
+									<InOut>1</InOut>
+								</Var>
+								<Var>
+									<Name>Data Out 21</Name>
+									<Type>USINT</Type>
+									<BitOffs>408</BitOffs>
+									<InOut>1</InOut>
+								</Var>
+							</Vars>
+						</Term>
+						<Term Id="1" TermType="#x2332" Fieldbus="7">
+							<Name>End-Klemme (KL9010)</Name>
+							<ImageId>32</ImageId>
+						</Term>
+					</BusCoupler>
+					<EtherCAT SlaveType="3" AdsServerAddress="0a0c3b2d0302e903" FixedAdsServerNetId="true" PdiType="#x0208" MboxDataLinkLayer="true" CycleMBoxPolling="true" CoeType="51" FoeType="1" VendorId="#x00000002" ProductCode="#x04602c22" RevisionNo="#x00150000" InfoDataAddr="true" InfoDataNetId="true" TimeoutStateChange1="5000" TimeoutMailbox2="6000" GenerateOwnNetId="true" PortPhys="17" PortABoxInfo="#x00ffffff">
+						<SyncMan>001e00012600010001000000400000010001001e26010000</SyncMan>
+						<SyncMan>001f00012200010002000000400000010001001f22010000</SyncMan>
+						<SyncMan>00101a002400010003000000000000000000001024010000</SyncMan>
+						<SyncMan>00171a000000010004000000000000000000001700010000</SyncMan>
+						<Fmmu>0000000000000000001000020100000001000000000000000000000000000000</Fmmu>
+						<Fmmu>0000000000000000001700010100000002000000000000000000000000000000</Fmmu>
+						<BootStrapData>0010140200181402</BootStrapData>
+					</EtherCAT>
+				</Box>
+				<EtherCAT/>
+			</Device>
+		</Io>
+	</Project>
+	<Mappings>
+		<MappingInfo Identifier="{00000000-2001-0850-0020-500810000403}" Id="#x02030010"/>
+		<MappingInfo Identifier="{00000000-2001-0850-0020-500821000403}" Id="#x02030020"/>
+		<OwnerA Name="TIPC^RS485_HausBus^RS485_HausBus Instance">
+			<OwnerB Name="TIID^Device 2 (EtherCAT)^Box 1 (BK1120)">
+				<Link VarA="PlcTask Inputs^.KL6041In^D[0]" VarB="Term 2 (KL6041)^Channel 1^Data In 0"/>
+				<Link VarA="PlcTask Inputs^.KL6041In^D[10]" VarB="Term 2 (KL6041)^Channel 1^Data In 10"/>
+				<Link VarA="PlcTask Inputs^.KL6041In^D[11]" VarB="Term 2 (KL6041)^Channel 1^Data In 11"/>
+				<Link VarA="PlcTask Inputs^.KL6041In^D[12]" VarB="Term 2 (KL6041)^Channel 1^Data In 12"/>
+				<Link VarA="PlcTask Inputs^.KL6041In^D[13]" VarB="Term 2 (KL6041)^Channel 1^Data In 13"/>
+				<Link VarA="PlcTask Inputs^.KL6041In^D[14]" VarB="Term 2 (KL6041)^Channel 1^Data In 14"/>
+				<Link VarA="PlcTask Inputs^.KL6041In^D[15]" VarB="Term 2 (KL6041)^Channel 1^Data In 15"/>
+				<Link VarA="PlcTask Inputs^.KL6041In^D[16]" VarB="Term 2 (KL6041)^Channel 1^Data In 16"/>
+				<Link VarA="PlcTask Inputs^.KL6041In^D[17]" VarB="Term 2 (KL6041)^Channel 1^Data In 17"/>
+				<Link VarA="PlcTask Inputs^.KL6041In^D[18]" VarB="Term 2 (KL6041)^Channel 1^Data In 18"/>
+				<Link VarA="PlcTask Inputs^.KL6041In^D[19]" VarB="Term 2 (KL6041)^Channel 1^Data In 19"/>
+				<Link VarA="PlcTask Inputs^.KL6041In^D[1]" VarB="Term 2 (KL6041)^Channel 1^Data In 1"/>
+				<Link VarA="PlcTask Inputs^.KL6041In^D[20]" VarB="Term 2 (KL6041)^Channel 1^Data In 20"/>
+				<Link VarA="PlcTask Inputs^.KL6041In^D[21]" VarB="Term 2 (KL6041)^Channel 1^Data In 21"/>
+				<Link VarA="PlcTask Inputs^.KL6041In^D[2]" VarB="Term 2 (KL6041)^Channel 1^Data In 2"/>
+				<Link VarA="PlcTask Inputs^.KL6041In^D[3]" VarB="Term 2 (KL6041)^Channel 1^Data In 3"/>
+				<Link VarA="PlcTask Inputs^.KL6041In^D[4]" VarB="Term 2 (KL6041)^Channel 1^Data In 4"/>
+				<Link VarA="PlcTask Inputs^.KL6041In^D[5]" VarB="Term 2 (KL6041)^Channel 1^Data In 5"/>
+				<Link VarA="PlcTask Inputs^.KL6041In^D[6]" VarB="Term 2 (KL6041)^Channel 1^Data In 6"/>
+				<Link VarA="PlcTask Inputs^.KL6041In^D[7]" VarB="Term 2 (KL6041)^Channel 1^Data In 7"/>
+				<Link VarA="PlcTask Inputs^.KL6041In^D[8]" VarB="Term 2 (KL6041)^Channel 1^Data In 8"/>
+				<Link VarA="PlcTask Inputs^.KL6041In^D[9]" VarB="Term 2 (KL6041)^Channel 1^Data In 9"/>
+				<Link VarA="PlcTask Inputs^.KL6041In^Status" VarB="Term 2 (KL6041)^Channel 1^Status"/>
+				<Link VarA="PlcTask Inputs^.uiEtherCATStateBK1120_RS485COM" VarB="InfoData^State"/>
+				<Link VarA="PlcTask Inputs^.uiKBusStateBK1120_RS485COM" VarB="Inputs^CouplerState"/>
+				<Link VarA="PlcTask Outputs^.KL6041Out^Ctrl" VarB="Term 2 (KL6041)^Channel 1^Ctrl"/>
+				<Link VarA="PlcTask Outputs^.KL6041Out^D[0]" VarB="Term 2 (KL6041)^Channel 1^Data Out 0"/>
+				<Link VarA="PlcTask Outputs^.KL6041Out^D[10]" VarB="Term 2 (KL6041)^Channel 1^Data Out 10"/>
+				<Link VarA="PlcTask Outputs^.KL6041Out^D[11]" VarB="Term 2 (KL6041)^Channel 1^Data Out 11"/>
+				<Link VarA="PlcTask Outputs^.KL6041Out^D[12]" VarB="Term 2 (KL6041)^Channel 1^Data Out 12"/>
+				<Link VarA="PlcTask Outputs^.KL6041Out^D[13]" VarB="Term 2 (KL6041)^Channel 1^Data Out 13"/>
+				<Link VarA="PlcTask Outputs^.KL6041Out^D[14]" VarB="Term 2 (KL6041)^Channel 1^Data Out 14"/>
+				<Link VarA="PlcTask Outputs^.KL6041Out^D[15]" VarB="Term 2 (KL6041)^Channel 1^Data Out 15"/>
+				<Link VarA="PlcTask Outputs^.KL6041Out^D[16]" VarB="Term 2 (KL6041)^Channel 1^Data Out 16"/>
+				<Link VarA="PlcTask Outputs^.KL6041Out^D[17]" VarB="Term 2 (KL6041)^Channel 1^Data Out 17"/>
+				<Link VarA="PlcTask Outputs^.KL6041Out^D[18]" VarB="Term 2 (KL6041)^Channel 1^Data Out 18"/>
+				<Link VarA="PlcTask Outputs^.KL6041Out^D[19]" VarB="Term 2 (KL6041)^Channel 1^Data Out 19"/>
+				<Link VarA="PlcTask Outputs^.KL6041Out^D[1]" VarB="Term 2 (KL6041)^Channel 1^Data Out 1"/>
+				<Link VarA="PlcTask Outputs^.KL6041Out^D[20]" VarB="Term 2 (KL6041)^Channel 1^Data Out 20"/>
+				<Link VarA="PlcTask Outputs^.KL6041Out^D[21]" VarB="Term 2 (KL6041)^Channel 1^Data Out 21"/>
+				<Link VarA="PlcTask Outputs^.KL6041Out^D[2]" VarB="Term 2 (KL6041)^Channel 1^Data Out 2"/>
+				<Link VarA="PlcTask Outputs^.KL6041Out^D[3]" VarB="Term 2 (KL6041)^Channel 1^Data Out 3"/>
+				<Link VarA="PlcTask Outputs^.KL6041Out^D[4]" VarB="Term 2 (KL6041)^Channel 1^Data Out 4"/>
+				<Link VarA="PlcTask Outputs^.KL6041Out^D[5]" VarB="Term 2 (KL6041)^Channel 1^Data Out 5"/>
+				<Link VarA="PlcTask Outputs^.KL6041Out^D[6]" VarB="Term 2 (KL6041)^Channel 1^Data Out 6"/>
+				<Link VarA="PlcTask Outputs^.KL6041Out^D[7]" VarB="Term 2 (KL6041)^Channel 1^Data Out 7"/>
+				<Link VarA="PlcTask Outputs^.KL6041Out^D[8]" VarB="Term 2 (KL6041)^Channel 1^Data Out 8"/>
+				<Link VarA="PlcTask Outputs^.KL6041Out^D[9]" VarB="Term 2 (KL6041)^Channel 1^Data Out 9"/>
+			</OwnerB>
+		</OwnerA>
+	</Mappings>
+</TcSmProject>
