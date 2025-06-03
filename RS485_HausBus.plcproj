@@ -101,6 +101,9 @@
     <Compile Include="POUs\RS485_Hausbus_FB\RS485 COM\fb_RS485ComCheck.TcPOU">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="POUs\RS485_Hausbus_FB\RS485 COM\fb_RS485IdScan.TcPOU">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="POUs\RS485_Hausbus_FB\RS485 COM\fb_RS485Ping.TcPOU">
       <SubType>Code</SubType>
     </Compile>
@@ -174,6 +177,7 @@
     <Folder Include="POUs\RS485_Hausbus_FB" />
     <Folder Include="POUs\RS485_Hausbus_FB\CYD" />
     <Folder Include="POUs\RS485_Hausbus_FB\RS485 COM\FB" />
+    <Folder Include="POUs\RS485_Hausbus_FB\RS485 COM\OLD" />
     <Folder Include="POUs\RS485_Hausbus_FB\RS485 COM\RS485_Master" />
     <Folder Include="POUs\RS485_Hausbus_FB\Events" />
     <Folder Include="POUs\RS485_Hausbus_FB\BusTaster" />

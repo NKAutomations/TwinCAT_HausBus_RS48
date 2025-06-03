@@ -202,6 +202,11 @@ Beleuchtung"</v>
               <l n="LanguageTexts" t="ArrayList" />
             </o>
             <o>
+              <v n="TextID">"587"</v>
+              <v n="TextDefault">"Gefundene Ids"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
               <v n="TextID">"29"</v>
               <v n="TextDefault">"Hintergrund LEDs: %s"</v>
               <l n="LanguageTexts" t="ArrayList" />
@@ -344,6 +349,11 @@ Beleuchtung"</v>
             <o>
               <v n="TextID">"289"</v>
               <v n="TextDefault">"RX: %s"</v>
+              <l n="LanguageTexts" t="ArrayList" />
+            </o>
+            <o>
+              <v n="TextID">"963"</v>
+              <v n="TextDefault">"Scan"</v>
               <l n="LanguageTexts" t="ArrayList" />
             </o>
             <o>

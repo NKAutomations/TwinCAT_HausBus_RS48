@@ -3272,6 +3272,64 @@
                               </o>
                               <o>
                                 <v n="Flags">2L</v>
+                                <v n="BasicTypeNodeValue">"RS485_COM_PRG.fbRS485SendCmdFiFo.I_bSearchMode"</v>
+                                <v n="BasicTypeNodeAcceptsExpression">true</v>
+                                <n n="BasicTypeNodeFastAccess" />
+                                <a n="BasicTypeNodeEnumValues" et="String" />
+                                <n n="EnumValueDisplayTextIds" />
+                                <n n="EnumValueVisibilityAttributeValues" />
+                                <n n="EnumValueLibraryId" />
+                                <n n="DynamicEnumMemberVisibilityCheckerTypeGuid" />
+                                <l n="TypeNodeChildren" t="ArrayList" />
+                                <o n="TypeNodeType" t="TypeNodeType">
+                                  <v n="TypeClass" t="TypeClass">Reference</v>
+                                  <v n="QualifiedName">"BOOL"</v>
+                                  <v n="Name">"BOOL"</v>
+                                </o>
+                                <v n="TypeNodeName">"bIDScan"</v>
+                                <o n="TypeNodeAttributes" t="TypeNodeAttributes2">
+                                  <v n="AttrFlags">0UL</v>
+                                  <d n="TypeNodeAttributesData" t="CaseInsensitiveHashtable" />
+                                  <v n="ConvDone">true</v>
+                                </o>
+                                <v n="TypeNodeId" t="Int16">260</v>
+                                <v n="TypeNodeIdLong">2838901402L</v>
+                                <n n="LibraryId" />
+                                <n n="DisplayTextId" />
+                                <n n="DescriptionTextID" />
+                                <v n="DescriptionUseParent">false</v>
+                              </o>
+                              <o>
+                                <v n="Flags">2L</v>
+                                <v n="BasicTypeNodeValue">"RS485_COM_PRG.fbRS485SendCmdFiFo.fbRS485Search.Q_sIDList"</v>
+                                <v n="BasicTypeNodeAcceptsExpression">true</v>
+                                <n n="BasicTypeNodeFastAccess" />
+                                <a n="BasicTypeNodeEnumValues" et="String" />
+                                <n n="EnumValueDisplayTextIds" />
+                                <n n="EnumValueVisibilityAttributeValues" />
+                                <n n="EnumValueLibraryId" />
+                                <n n="DynamicEnumMemberVisibilityCheckerTypeGuid" />
+                                <l n="TypeNodeChildren" t="ArrayList" />
+                                <o n="TypeNodeType" t="TypeNodeType">
+                                  <v n="TypeClass" t="TypeClass">Reference</v>
+                                  <v n="QualifiedName">"ARRAY [1..cMaxScanIDs] OF DINT"</v>
+                                  <v n="Name">"ARRAY [1..cMaxScanIDs] OF DINT"</v>
+                                </o>
+                                <v n="TypeNodeName">"diScanIds"</v>
+                                <o n="TypeNodeAttributes" t="TypeNodeAttributes2">
+                                  <v n="AttrFlags">0UL</v>
+                                  <d n="TypeNodeAttributesData" t="CaseInsensitiveHashtable" />
+                                  <v n="ConvDone">true</v>
+                                </o>
+                                <v n="TypeNodeId" t="Int16">261</v>
+                                <v n="TypeNodeIdLong">4193495966L</v>
+                                <n n="LibraryId" />
+                                <n n="DisplayTextId" />
+                                <n n="DescriptionTextID" />
+                                <v n="DescriptionUseParent">false</v>
+                              </o>
+                              <o>
+                                <v n="Flags">2L</v>
                                 <v n="BasicTypeNodeValue">"RS485_COM_PRG.fbRS485SendCmdFiFo.Q_stStates"</v>
                                 <v n="BasicTypeNodeAcceptsExpression">true</v>
                                 <n n="BasicTypeNodeFastAccess" />
@@ -3292,7 +3350,7 @@
                                   <d n="TypeNodeAttributesData" t="CaseInsensitiveHashtable" />
                                   <v n="ConvDone">true</v>
                                 </o>
-                                <v n="TypeNodeId" t="Int16">260</v>
+                                <v n="TypeNodeId" t="Int16">262</v>
                                 <v n="TypeNodeIdLong">2710316559L</v>
                                 <n n="LibraryId" />
                                 <n n="DisplayTextId" />
@@ -3321,7 +3379,7 @@
                                   <d n="TypeNodeAttributesData" t="CaseInsensitiveHashtable" />
                                   <v n="ConvDone">true</v>
                                 </o>
-                                <v n="TypeNodeId" t="Int16">261</v>
+                                <v n="TypeNodeId" t="Int16">263</v>
                                 <v n="TypeNodeIdLong">1524044631L</v>
                                 <n n="LibraryId" />
                                 <n n="DisplayTextId" />
@@ -3368,8 +3426,16 @@
                           <v n="Value">"RS485_COM_PRG.fbRS485SendCmdFiFo.I_bSendManuell"</v>
                         </o>
                         <o>
+                          <v n="Id">1427206484L</v>
+                          <v n="Value">"RS485_COM_PRG.fbRS485SendCmdFiFo.I_sSendCmdManuell"</v>
+                        </o>
+                        <o>
                           <v n="Id">1017610282L</v>
                           <v n="Value">"RS485_COM_PRG.fbRS485SendCmdFiFo.I_bManuellMode"</v>
+                        </o>
+                        <o>
+                          <v n="Id">2838901402L</v>
+                          <v n="Value">"RS485_COM_PRG.fbRS485SendCmdFiFo.I_bSearchMode"</v>
                         </o>
                         <o>
                           <v n="Id">2710316559L</v>
@@ -3380,8 +3446,8 @@
                           <v n="Value">"RS485_COM_PRG.fbRS485Startup.Q_stStates"</v>
                         </o>
                         <o>
-                          <v n="Id">1427206484L</v>
-                          <v n="Value">"RS485_COM_PRG.fbRS485SendCmdFiFo.I_sSendCmdManuell"</v>
+                          <v n="Id">4193495966L</v>
+                          <v n="Value">"RS485_COM_PRG.fbRS485SendCmdFiFo.fbRS485Search.Q_sIDList"</v>
                         </o>
                       </l>
                     </o>

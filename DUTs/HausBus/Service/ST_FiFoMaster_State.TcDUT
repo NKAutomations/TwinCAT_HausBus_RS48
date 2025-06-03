@@ -12,6 +12,7 @@ STRUCT
 	iFiFoRow				:INT;
 	sSendString				:STRING(255);
 	sState					:STRING;
+	
 END_STRUCT
 END_TYPE
 ]]></Declaration>

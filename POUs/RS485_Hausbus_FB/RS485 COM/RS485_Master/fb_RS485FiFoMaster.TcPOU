@@ -14,6 +14,7 @@ Date          	| Version    	| created under        	| Author          	| Remark
 (*28/05/2025   	| 1.05      		| TC3		  		| N.Kersting       | Neue Automatisch Ping Funktion hinzugefügt & Wichtiger Bugfix *)
 (*02/06/2025   	| 2.00      		| TC3		  		| N.Kersting       | Neue Verbesserte Collision Detection, verhindert, dass Senden bei gefülltem Epmfangspuffer *)
 (*03/06/2025   	| 2.01      		| TC3		  		| N.Kersting       | Collision Detection nun aufgeeilt in Empfang und Senden *)
+(*03/06/2025   	| 2.02      		| TC3		  		| N.Kersting       | Neue Bus Scan Funktion Implementiert, Scannt alle Teilnehmer Ids im Bus (nur im Manuell Mode verfügbar) *)
 (*====================================================================================================================================================*)
 FUNCTION_BLOCK fb_RS485FiFoMaster
 VAR_INPUT
@@ -24,6 +25,7 @@ VAR_INPUT
 	I_tAutoPingTime				:TIME :=T#10S;										(* Die Intervallzeit, Bis ein Auto Ping gesendet wird *)
 	
 	I_bManuellMode				:BOOL := FALSE;
+	I_bSearchMode				:BOOL := FALSE;
 	I_sSendCmdManuell			:STRING(255);
 	I_bSendManuell				:BOOL;
 	I_bExecute					:BOOL := TRUE;
@@ -87,9 +89,12 @@ VAR
 	tonSend						:ton;
 (*==========================================================================================================*)		
 	rTrigSendManuell			:r_Trig;
+	rTrigSendSearchMode			:r_trig;
 	fbSend     					:SendString255;
 	fbReceive   				:ReceiveString255;
 	fbBusAuslastung				:fb_FilterArray;
+	
+	fbRS485Search				:fb_RS485IdScan;
 END_VAR
 ]]></Declaration>
     <Implementation>
@@ -200,16 +205,35 @@ CASE iStepFiFo OF
 (*============================================================================================*)	
 1:	sStep := 'Prüfen ob STRING in FiFo Zeile gefüllt*';
 	
+	IF I_bSearchMode
+	THEN
+		sStep :=fbRS485Search.Q_sState;
+	END_IF
+	
 	(* Manueller Modus *)
 	IF I_bManuellMode
 	THEN
 		(* Prüfen ob in der Zeile etwas steht *)
 		IF I_sSendCmdManuell <>''
 			AND rTrigSendManuell.Q
+			AND NOT I_bSearchMode
 		THEN
 			IF bCollisionFree
 			THEN
 				sString :=	I_sSendCmdManuell; 
+				bStringSend := TRUE;
+				Q_bDone := FALSE;
+				Q_bError := FALSE;
+				iStepFiFo := iStepFiFo+1;
+			END_IF
+		END_IF
+		(* Prüfen ob in der Zeile etwas steht *)
+		IF I_bSearchMode
+			AND fbRS485Search.Q_bSend
+		THEN
+			IF bCollisionFree
+			THEN
+				sString :=	fbRS485Search.Q_sSearchString; 
 				bStringSend := TRUE;
 				Q_bDone := FALSE;
 				Q_bError := FALSE;
@@ -268,6 +292,7 @@ CASE iStepFiFo OF
 	IF NOT fbSend.Busy
 		AND NOT fbReceive.StringReceived
 	THEN
+		sString := '';
 		tonSend.IN := FALSE;
 		bStringSend := FALSE;
 		iStepFiFo := iStepFiFo+1;
@@ -291,12 +316,20 @@ CASE iStepFiFo OF
 	GVL_RS485FiFoSend.bSendDoneFiFo[iFiFoRow] :=TRUE;
 	
 	IF iFiFoRow < cMaxRS485CMDFiFo
+		AND NOT I_bSearchMode
 	THEN
 		iFiFoRow := iFiFoRow+1;
 		iStepFiFo := 1;
 	ELSE
 		Q_bDone := TRUE;
-		iStepFiFo := 0;
+		
+		IF (NOT fbRS485Search.Q_bSend
+			AND I_bSearchMode)
+			OR NOT I_bSearchMode
+		THEN
+			iStepFiFo := 0;
+		END_IF
+		
 	END_IF
 	
 (*============================================================================================*)	
@@ -467,7 +500,17 @@ fbBusAuslastung(
 	I_nFilterWert:= 50, 
 	Q_nFilter=> 	Q_lrBusAuslastung);
 	
-	]]></ST>
+	
+fbRS485Search(
+	I_bStartSearch:= 	I_bSearchMode, 
+	I_diStartID:= , 
+	I_diMaxID:= , 
+	I_sStartZeichen:= 	I_sStartZeichen, 
+	I_sEndZeichen:= 	I_sEndZeichen, 
+	I_tWait:= , 
+	I_StringReceived:= 	sReceivedMEMString, 
+	Q_bSend=> , 
+	Q_sSearchString=> );]]></ST>
       </Implementation>
     </Action>
     <LineIds Name="fb_RS485FiFoMaster">
@@ -520,7 +563,7 @@ fbBusAuslastung(
       <LineId Id="1073" Count="0" />
       <LineId Id="684" Count="0" />
       <LineId Id="1074" Count="0" />
-      <LineId Id="1072" Count="0" />
+      <LineId Id="1711" Count="0" />
       <LineId Id="503" Count="0" />
       <LineId Id="490" Count="0" />
       <LineId Id="711" Count="0" />
@@ -563,12 +606,17 @@ fbBusAuslastung(
       <LineId Id="510" Count="0" />
       <LineId Id="514" Count="0" />
       <LineId Id="541" Count="0" />
+      <LineId Id="1816" Count="1" />
+      <LineId Id="1819" Count="0" />
+      <LineId Id="1818" Count="0" />
+      <LineId Id="1820" Count="0" />
       <LineId Id="685" Count="0" />
       <LineId Id="1076" Count="0" />
       <LineId Id="1080" Count="0" />
       <LineId Id="1135" Count="0" />
       <LineId Id="1083" Count="0" />
       <LineId Id="1149" Count="0" />
+      <LineId Id="1693" Count="0" />
       <LineId Id="1084" Count="0" />
       <LineId Id="1143" Count="0" />
       <LineId Id="1146" Count="0" />
@@ -579,6 +627,11 @@ fbBusAuslastung(
       <LineId Id="1086" Count="0" />
       <LineId Id="1147" Count="0" />
       <LineId Id="1085" Count="0" />
+      <LineId Id="1695" Count="0" />
+      <LineId Id="1698" Count="0" />
+      <LineId Id="1708" Count="0" />
+      <LineId Id="1699" Count="8" />
+      <LineId Id="1694" Count="0" />
       <LineId Id="1087" Count="1" />
       <LineId Id="1133" Count="0" />
       <LineId Id="1090" Count="11" />
@@ -593,14 +646,24 @@ fbBusAuslastung(
       <LineId Id="635" Count="0" />
       <LineId Id="637" Count="3" />
       <LineId Id="789" Count="0" />
-      <LineId Id="641" Count="16" />
+      <LineId Id="641" Count="0" />
+      <LineId Id="1719" Count="0" />
+      <LineId Id="642" Count="15" />
       <LineId Id="547" Count="0" />
       <LineId Id="1347" Count="0" />
       <LineId Id="1313" Count="0" />
       <LineId Id="511" Count="0" />
       <LineId Id="666" Count="0" />
-      <LineId Id="668" Count="5" />
+      <LineId Id="668" Count="1" />
+      <LineId Id="1720" Count="0" />
+      <LineId Id="670" Count="3" />
       <LineId Id="931" Count="0" />
+      <LineId Id="1712" Count="1" />
+      <LineId Id="1716" Count="0" />
+      <LineId Id="1718" Count="0" />
+      <LineId Id="1714" Count="0" />
+      <LineId Id="1717" Count="0" />
+      <LineId Id="1715" Count="0" />
       <LineId Id="674" Count="0" />
       <LineId Id="553" Count="0" />
       <LineId Id="1480" Count="0" />
@@ -663,6 +726,8 @@ fbBusAuslastung(
       <LineId Id="2" Count="3" />
       <LineId Id="1" Count="0" />
       <LineId Id="6" Count="1" />
+      <LineId Id="13" Count="8" />
+      <LineId Id="12" Count="0" />
     </LineIds>
   </POU>
 </TcPlcObject>

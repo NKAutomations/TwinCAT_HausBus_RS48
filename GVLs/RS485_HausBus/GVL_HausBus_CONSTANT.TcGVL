@@ -7,6 +7,7 @@ VAR_GLOBAL CONSTANT
 	cMaxCYD					:INT :=2;
 	cMaxBusRelais			:INT :=1;
 	cMaxRS485CMDFiFo		:INT := 15;
+	cMaxScanIDs				:INT :=50;
 END_VAR]]></Declaration>
   </GVL>
 </TcPlcObject>
