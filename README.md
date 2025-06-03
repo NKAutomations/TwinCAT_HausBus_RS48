@@ -1,95 +1,86 @@
+Hier ist eine neue README-Vorlage mit vollständigem Changelog und einer verständlichen deutschen Projektbeschreibung für dein TwinCAT_HausBus_RS485-Projekt:
+
+---
+
 # TwinCAT_HausBus_RS485
-TwinCAT RS485 Hausbus # RS485HausBus_Beta
 
-Ein TwinCAT 3-basiertes Automatisierungsprojekt zur Ansteuerung von Haus-Bus.de-Komponenten über eine proprietäre serielle Kommunikation via RS485. Es handelt sich **nicht** um Modbus, sondern um ein eigenes, leichtgewichtiges Master-Slave-Protokoll für die Hausautomatisierung.
+TwinCAT 3-basiertes Automatisierungsframework zur Ansteuerung von Haus-Bus.de-Komponenten über eine serielle RS485-Verbindung (kein Modbus).
 
-## Projektziel
+## Projektziele
 
-Dieses Projekt stellt ein Framework zur Verfügung, mit dem über eine serielle RS485-Verbindung verschiedene **Haus-Bus.de-Komponenten** (z. B. Tastermodule, Relaismodule) angesteuert, überwacht und visualisiert werden können. Es dient als Ausgangsbasis für die Entwicklung individueller Hausautomatisierungslösungen.
+Das Projekt ermöglicht die Steuerung, Überwachung und Visualisierung verschiedener Haus-Bus.de-Komponenten (z.B. Taster- und Relaismodule) über eine eigens entwickelte, serielle RS485-Kommunikation. Ziel ist es, eine flexible, zuverlässige und erweiterbare Lösung für die Gebäudeautomatisierung zu bieten.
 
 ---
 
 ## Hauptfunktionen
 
-### 1. **RS485-Kommunikation (eigenes Protokoll)**
-
-- Implementiert ein einfaches FIFO-basiertes Master-Slave-Protokoll.
-- Kommuniziert zyklisch mit bis zu mehreren Slaves (z. B. Taster, Relais, Sensoren).
-- Kein Einsatz von Modbus – die Kommunikation ist speziell auf Haus-Bus.de-Geräte zugeschnitten.
-
-### 2. **Unterstützte Geräte**
-
-#### Tastermodul (z. B. 6-fach)
-- Verarbeitung und Entprellung von Tasterereignissen.
-- Weiterleitung an Logikbausteine oder Visualisierung.
-- Baustein: `fb_TasterBus6F`
-
-#### Relaismodul (z. B. 16-fach)
-- Ansteuerung einzelner Relais über Kommunikationsdaten.
-- Baustein: `fb_RelaisBus16F`
-
-#### Spezialevents
-- Temperatursensoren, Ping-Events, Reset, Broadcast usw.
-- Ereignisbausteine wie `fb_BusTasterEvent`, `fb_BusTempEvent`, `fb_BusBrsEvent` zur gezielten Behandlung.
+- **RS485-Kommunikation:** FIFO-basiertes Master-Slave-Protokoll, speziell für Haus-Bus.de-Geräte, nicht Modbus. Zyklische Kommunikation mit mehreren Slaves (Taster, Relais, Sensoren).
+- **Unterstützte Geräte:**
+  - Tastermodule (z.B. 6-fach): Entprellung und Verarbeitung von Tastendrücken.
+  - Relaismodule (z.B. 16-fach): Ansteuerung einzelner Relais.
+  - Spezialereignisse: Temperatursensoren, Ping-Events, Reset, Broadcast etc.
+- **Visualisierung:** Statusanzeigen für RS485-Master, Module und Diagnose über TwinCAT Visualisierung.
+- **Erweiterbarkeit:** Neue Gerätetypen und Features können leicht ergänzt werden (eigene DUTs, Bausteine & Visualisierung).
 
 ---
 
 ## Projektstruktur
 
-| Bereich | Beschreibung |
-|--------|--------------|
-| `POUs/RS485_Hausbus_FB/` | Alle wichtigen Funktionsbausteine für Kommunikation und Gerätesteuerung |
-| `GVLs/` | Globale Variablenlisten für Konfiguration, Kommunikation und Visualisierung |
-| `DUTs/` | Benutzerdefinierte Datentypen für Eingänge, Ausgänge, Events und FIFO-Kommunikation |
-| `VISUs/` | Visualisierungsseiten für Diagnose und Gerätemanagement |
-| `MAIN.TcPOU` | Hauptprogramm, in dem zyklisch Kommunikation und Logik verarbeitet werden |
-
----
-
-## Kommunikationstechnologie
-
-- **RS485-Interface** über TwinCAT Serial COM Bibliothek (`Tc2_SerialCom`).
-- Verwendung eines FIFO-Puffers (`fb_RS485FiFoMaster`) zur Verwaltung der Nachrichten.
-- Fehlerdiagnose und Verbindungsüberwachung über `fb_RS485ComCheck`.
-
----
-
-## Visualisierung
-
-Das Projekt beinhaltet Visualisierungen für:
-- **RS485-Masterstatus**
-- **Einzelne Taster- und Relaismodule**
-- **Diagnose- und Servicezwecke**
-
-Verwendet werden TwinCAT Visualisierungselemente in `.TcVIS`-Dateien.
-
----
-
-## Erweiterbarkeit
-
-Neue Gerätetypen oder Features können hinzugefügt werden durch:
-1. Anlegen eigener DUTs für Ein-/Ausgangsdaten.
-2. Erstellung eines neuen Funktionsbausteins (z. B. `fb_<NeuesGerät>`).
-3. Einbindung in den Zyklus im `MAIN`.
-4. Ergänzen der Visualisierung bei Bedarf.
+| Bereich                  | Beschreibung                                                         |
+|--------------------------|----------------------------------------------------------------------|
+| `POUs/RS485_Hausbus_FB/` | Funktionsbausteine für Kommunikation und Gerätesteuerung             |
+| `GVLs/`                  | Globale Variablenlisten für Konfiguration, Kommunikation, Visualisierung |
+| `DUTs/`                  | Benutzerdefinierte Datentypen für Ein-/Ausgänge, Events, FIFO        |
+| `VISUs/`                 | Visualisierungsseiten für Diagnose und Gerätemanagement              |
+| `MAIN.TcPOU`             | Hauptprogramm für zyklische Kommunikation und Logik                  |
 
 ---
 
 ## Voraussetzungen
 
-- **Beckhoff TwinCAT 3**
-- RS485-Schnittstelle am Steuerungssystem (z. B. über CX, IPC oder USB-Konverter)
-- Haus-Bus.de-kompatible Geräte
+- Beckhoff TwinCAT 3
+- RS485-Schnittstelle am Steuerungssystem (z.B. über CX, IPC oder USB-Konverter)
+- Haus-Bus.de-kompatible Geräte (Oder CYD, siehe https://github.com/zonfacter/ESP32_CYD_RS485_HAUS-BUS)
+
+---
+
+## Versionshistorie & Changelog
+
+### V1.05 (03.06.2025)
+- Überarbeitete Collision Detection im FiFo Master: Überwacht, ob bereits Datenverkehr auf dem Bus ist, bevor Befehle gesendet werden.
+- [Release-Link](https://github.com/NKAutomations/TwinCAT_HausBus_RS485/releases/tag/V1.05)
+
+### V1.04 (28.05.2025)
+- Neuer Ping-Baustein, welcher überwacht, ob ein Ping kommt.
+- FiFo Master kann nun alle Devices unabhängig von anderen Funktionsbausteinen anpingen.
+- [Release-Link](https://github.com/NKAutomations/TwinCAT_HausBus_RS485/releases/tag/V1.04)
+
+### V1.03 (27.05.2025)
+- Neue Service-Funktionen für das Cheap Yellow Display Projekt (https://github.com/zonfacter/ESP32_CYD_RS485_HAUS-BUS).
+- Manueller Modus für FiFo Master: Senden eines einzelnen Strings über Service-Visualisierung möglich.
+- [Release-Link](https://github.com/NKAutomations/TwinCAT_HausBus_RS485/releases/tag/V1.03)
+
+### V1.02 (23.05.2025)
+- Implementierung des Cheap Yellow Display Projekts.
+- [Release-Link](https://github.com/NKAutomations/TwinCAT_HausBus_RS485/releases/tag/V1.02)
+
+### V1.01 (16.05.2025)
+- Erstes Release des Projekts.
+- [Release-Link](https://github.com/NKAutomations/TwinCAT_HausBus_RS485/releases/tag/V1.01)
+
+Vollständiger Changelog siehe:  
+- https://github.com/NKAutomations/TwinCAT_HausBus_RS485/commits/main  
+- Vergleich einzelner Versionen: https://github.com/NKAutomations/TwinCAT_HausBus_RS485/releases
 
 ---
 
 ## Lizenz
 
-Dieses Projekt ist ein Beta-Release von [NKAutomations] und derzeit ausschließlich zur internen oder Testverwendung bestimmt. 
+Dieses Projekt ist ein Beta-Release von [NKAutomations] und ausschließlich zur internen oder Testverwendung bestimmt.
 
 ---
 
 ## Kontakt
 
-Für Fragen oder Feedback:
-- GitHub Issues nutzen oder per E-Mail an die Projektbetreuer
+Für Fragen oder Feedback:  
+- GitHub Issues nutzen  
