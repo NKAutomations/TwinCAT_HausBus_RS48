@@ -12,6 +12,8 @@ Date          	| Version    	| created under        	| Author          	| Remark
 (*14/05/2025   	| 1.03      		| TC3		  		| N.Kersting       | Busauslastung direkt Implementiert *)
 (*27/05/2025   	| 1.04      		| TC3		  		| N.Kersting       | Neuen Manuell Mode implementiert um einen Manuell generierten String allein zu Senden *)
 (*28/05/2025   	| 1.05      		| TC3		  		| N.Kersting       | Neue Automatisch Ping Funktion hinzugefügt & Wichtiger Bugfix *)
+(*02/06/2025   	| 2.00      		| TC3		  		| N.Kersting       | Neue Verbesserte Collision Detection, verhindert, dass Senden bei gefülltem Epmfangspuffer *)
+(*03/06/2025   	| 2.01      		| TC3		  		| N.Kersting       | Collision Detection nun aufgeeilt in Empfang und Senden *)
 (*====================================================================================================================================================*)
 FUNCTION_BLOCK fb_RS485FiFoMaster
 VAR_INPUT
@@ -42,61 +44,99 @@ VAR_OUTPUT
 	Q_stStates					:ST_FiFoMaster_State;
 END_VAR
 VAR
-	bFirstCycle					:BOOL := TRUE;
-	tVerzReceive				:TIME := T#30MS;									(* Zeit, die zum Empfangen bleibt *)
+(*==========================================================================================================*)
+(* Parameter *)
+(*==========================================================================================================*)
+	bActivateSend				:BOOL := TRUE;					(* Aktiviert das Senden von Nachrichten *)
+	bActivateReceive			:BOOL := TRUE;					(* Aktiviert das Empfangen von Nachrichten *)
 	
-	rTrigSendManuell			:r_Trig;
-	tonSend						:ton;
-	fbSend     					:SendString255;
-	fbReceive   				:ReceiveString255;
-	sStartZeichen				:BYTE := 16#FD;										(* Startzeichen Präfix *)
-	sEndZeichen					:BYTE := 16#FE;										(* Endzeichen Suffix *)
+	bUseRXCollisionDetection	:BOOL := TRUE;					(* Aktiviert die Empfangs Kollisions Überprüfung *)
+	bUseTXCollisionDetection	:BOOL := FALSE;					(* Aktiviert die Sende Kollisions Überprüfung *)
+	tVerzCollisionDetect		:TIME := T#100MS;				(* Zeit, die zum Empfangen bleibt *)
+(*==========================================================================================================*)	
+	bRXCollisionDetected		:BOOL;
+	bTXCollisionDetected		:BOOL;
+	bCollisionFree				:BOOL;	
+(*==========================================================================================================*)		
+	bFirstCycle					:BOOL := TRUE;
+	bStringSend					:BOOL := FALSE;
+	bBusBelastungstest			:BOOL := FALSE;
+	bBusAuslastung				:BOOL := TRUE;
+	bPingStart					:BOOL;
+	bBusyMem					:BOOL;
+(*==========================================================================================================*)	
 	sReceivedMEMString			:STRING(255);
 	sReceivedString				:STRING(255);
-	iStep						:INT;
-	iStepReceive				:INT;
-	iMaxBufferBlocking			:INT := 0;
-	bBusyMem					:BOOL;
 	sStep						:STRING;
 	sString						:STRING(255);
 	sStringSend					:STRING(255);
-	tonVerzReceive				:ton;	
-	tonTimeout					:ton;
-	tonPingIntervall			:ton;
-	
-	bStringSend					:BOOL := FALSE;
+(*==========================================================================================================*)		
+	iStep						:INT;
+	iStepReceive				:INT;
+	iMaxBufferBlocking			:INT := 20;
 	icntError					:INT;
-	
 	iFiFoRow					:INT := 1;
 	icntFiFo					:INT;
 	i,h							:INT;
 	iStepFiFo					:INT;
-	
-	bPingStart					:BOOL;
-	
-	bBusBelastungstest			:BOOL := FALSE;
-	bBusAuslastung				:BOOL := TRUE;
+(*==========================================================================================================*)		
+
+	tonCollisionFree			:ton;	
+	tonTimeout					:ton;
+	tonPingIntervall			:ton;
+	tonSend						:ton;
+(*==========================================================================================================*)		
+	rTrigSendManuell			:r_Trig;
+	fbSend     					:SendString255;
+	fbReceive   				:ReceiveString255;
 	fbBusAuslastung				:fb_FilterArray;
 END_VAR
 ]]></Declaration>
     <Implementation>
       <ST><![CDATA[(*============================================================================================*)
+(* Laufzeit fehler *)
 tonTimeout(
 	PT:=T#1S);
 	
-tonVerzReceive(
-	PT := tVerzReceive);
+(*============================================================================================*)		
+(* Collision detection, soll verhinddern, dass nicht gesendet wird, wenn Daten im Empfangsüpuffer sind *)
+(* Receive Collision Dectetion *)
+bRXCollisionDetected :=	(I_pRxBuffer^.Count > INT_TO_UINT(iMaxBufferBlocking) 
+						OR I_pRxBuffer^.FreeByte < (301 -INT_TO_UINT(iMaxBufferBlocking))
+						OR I_pRxBuffer^.blocked
+						OR I_pRxBuffer^.Error <> 0
+						OR fbReceive.StringReceived
+						(*OR sReceivedString <> ''*))
+						AND bUseRXCollisionDetection;
+						
+(* Transmit Collision Detection *)
+bTXCollisionDetected :=	(I_pTxBuffer^.Count > INT_TO_UINT(iMaxBufferBlocking) 
+						OR I_pTxBuffer^.FreeByte < (301 -INT_TO_UINT(iMaxBufferBlocking))
+						OR I_pTxBuffer^.blocked
+						OR I_pTxBuffer^.Error <> 0)
+						AND bUseTXCollisionDetection;
+						
+(* Collision Detection Verzögern *)						
+tonCollisionFree(
+	IN := 	NOT bRXCollisionDetected
+			AND NOT bTXCollisionDetected,
+	PT := 	tVerzCollisionDetect,
+	Q =>	bCollisionFree);
 
+(*============================================================================================*)	
+(* Ping Intervall Timer *)		
 tonPingIntervall(
 	IN := I_bAutoPing
 			AND NOT bPingStart,
 	PT := I_tAutoPingTime);
 	
+(*============================================================================================*)	
 (* Busbelastungstest *)	
 bBusBelastungstest := I_bBusBelastungstest;
-
 sReceivedMEMString:='';
+
 (*============================================================================================*)	
+(* Anzahl der gefüllten FiFo Zeilen *)
 icntFiFo := 0;
 FOR i := 1 TO cMaxRS485CMDFiFo BY 1 DO 
 	IF (I_sSendCmdFiFo[i]<> '')
@@ -105,6 +145,8 @@ FOR i := 1 TO cMaxRS485CMDFiFo BY 1 DO
 	END_IF
 END_FOR
 
+(*============================================================================================*)	
+(* Manuelles Senden *)
 rTrigSendManuell(
 	CLK := I_bSendManuell);
 
@@ -127,9 +169,7 @@ CASE iStepFiFo OF
 	iFiFoRow := 1;
 	bStringSend := FALSE;
 	Q_bBusy := FALSE;
-		
-	tonVerzReceive.IN := (I_pTxBuffer^.Count<= INT_TO_UINT(iMaxBufferBlocking));
-	
+			
 	(* Wenn die Intervall Zeit abgelaufen ist Ping Start setzen *)
 	IF tonPingIntervall.Q
 	THEN
@@ -140,9 +180,8 @@ CASE iStepFiFo OF
 		OR  bBusBelastungstest
 		OR I_bManuellMode)
 		AND NOT bFirstCycle
-		AND NOT fbReceive.StringReceived
 		AND NOT bPingStart
-		AND tonVerzReceive.Q
+		AND bCollisionFree
 	THEN
 		Q_bBusy := TRUE;
 		iStepFiFo := 1;
@@ -153,8 +192,7 @@ CASE iStepFiFo OF
 	ELSIF
 		bPingStart
 		AND NOT bFirstCycle
-		AND NOT fbReceive.StringReceived
-		AND tonVerzReceive.Q
+		AND bCollisionFree
 	THEN
 		iStepFiFo := 10;	(* Ping senden *)
 	END_IF
@@ -169,9 +207,7 @@ CASE iStepFiFo OF
 		IF I_sSendCmdManuell <>''
 			AND rTrigSendManuell.Q
 		THEN
-			IF NOT I_pTxBuffer^.blocked
-				AND (I_pTxBuffer^.Error=0)
-				AND NOT fbReceive.StringReceived
+			IF bCollisionFree
 			THEN
 				sString :=	I_sSendCmdManuell; 
 				bStringSend := TRUE;
@@ -191,13 +227,11 @@ CASE iStepFiFo OF
 			ELSE
 				IF bBusBelastungstest
 				THEN
-					sStringSend :=	CONCAT(F_ToCHR(sStartZeichen),'ServiceTOOL-BUSBELASTUNGSTEST-BURSTFIREMODE');
-					sStringSend :=	CONCAT(sStringSend,F_ToCHR(sEndZeichen));
+					sStringSend :=	CONCAT(F_ToCHR(I_sStartZeichen),'ServiceTOOL-BUSBELASTUNGSTEST-BURSTFIREMODE');
+					sStringSend :=	CONCAT(sStringSend,F_ToCHR(I_sEndZeichen));
 					(* Senden *)
 					
-					IF NOT I_pTxBuffer^.blocked
-						AND (I_pTxBuffer^.Error=0)
-						AND NOT fbReceive.StringReceived
+					IF  bCollisionFree
 					THEN
 						sStep := 'Prüfe ob Senden noch aktiv ist';
 						bStringSend := TRUE;
@@ -214,9 +248,7 @@ CASE iStepFiFo OF
 		(* Senden *)
 		GVL_RS485FiFoSend.bSendDoneFiFo[iFiFoRow] :=FALSE;
 		
-			IF NOT I_pTxBuffer^.blocked
-				AND (I_pTxBuffer^.Error=0)
-				AND NOT fbReceive.StringReceived
+			IF bCollisionFree
 			THEN
 				sStep := 'Prüfe ob Senden noch aktiv ist';
 				bStringSend := TRUE;
@@ -290,9 +322,7 @@ CASE iStepFiFo OF
 		END_IF
 	ELSE
 	(* Senden *)	
-		IF NOT I_pTxBuffer^.blocked
-			AND (I_pTxBuffer^.Error=0)
-			AND NOT fbReceive.StringReceived
+		IF bCollisionFree
 		THEN
 			sStep := 'Prüfe ob Senden noch aktiv ist';
 			bStringSend := TRUE;
@@ -354,25 +384,37 @@ ELSE
 	END_IF
 END_CASE
 
+(*============================================================================================*)	
+(* Nur Senden, wenn nicht Empfangen wird *)
 IF bStringSend
 THEN
-	fbSend(
-		SendString:= 	sString,
-		TXbuffer:= 		I_pTxBuffer^);
+	IF bActivateSend
+	THEN
+		(* Senden *)
+		fbSend(
+			SendString:= 	sString,
+			TXbuffer:= 		I_pTxBuffer^);
+	END_IF
+	
 ELSE
-	(* Empfangen *)
-	ac00_Receive();
+	IF bActivateReceive
+	THEN
+		(* Empfangen *)
+		ac00_Receive();
+	END_IF
 END_IF
 
+(*============================================================================================*)	
 (* Empfangsmerker 0 Setzen am ende Eines Zyklus *)
 Q_sReceiveString := sReceivedMEMString;
 
+(*============================================================================================*)	
 (* Busauslastung tracken*)
 ac99_Diagnose();
 
-Q_sState :=	sStep;
-
+(*============================================================================================*)	
 (* StatusStruktur für Visu *)
+Q_sState :=	sStep;
 Q_stStates.bBusy				:=	Q_bBusy;
 Q_stStates.bDone				:=	Q_bDone;
 Q_stStates.bError				:=	Q_bError;
@@ -386,11 +428,13 @@ Q_stStates.sState 				:=	Q_sState;
     </Implementation>
     <Action Name="ac00_Receive" Id="{e073380d-3387-459f-9bfa-efd9719ad95b}">
       <Implementation>
-        <ST><![CDATA[(* Empfangen *)
+        <ST><![CDATA[(*============================================================================================*)	
+(* Empfangen *)
+
 CASE iStepReceive OF		
 0:	fbReceive(
-		Prefix := 			F_ToCHR(sStartZeichen),
-		Suffix := 			F_ToCHR(sEndZeichen),
+		Prefix := 			F_ToCHR(I_sStartZeichen),
+		Suffix := 			F_ToCHR(I_sEndZeichen),
 		Timeout:= , 
 		Reset:= , 
 		StringReceived=> , 
@@ -414,7 +458,9 @@ END_CASE]]></ST>
     </Action>
     <Action Name="ac99_Diagnose" Id="{0748b0ff-dc5e-4fed-b339-00f4691b5b72}">
       <Implementation>
-        <ST><![CDATA[(* Busauslastung Prüfen *)
+        <ST><![CDATA[(*============================================================================================*)	
+(* Busauslastung Prüfen *)
+
 fbBusAuslastung(
 	I_bExcecute:= 	bBusAuslastung, 
 	I_nWert:= 		UINT_TO_LREAL(I_pTxBuffer^.Count), 
@@ -426,20 +472,43 @@ fbBusAuslastung(
     </Action>
     <LineIds Name="fb_RS485FiFoMaster">
       <LineId Id="676" Count="0" />
+      <LineId Id="1683" Count="0" />
       <LineId Id="681" Count="0" />
       <LineId Id="677" Count="0" />
+      <LineId Id="1672" Count="0" />
       <LineId Id="812" Count="0" />
+      <LineId Id="1675" Count="0" />
+      <LineId Id="1593" Count="0" />
+      <LineId Id="1596" Count="2" />
+      <LineId Id="1609" Count="0" />
+      <LineId Id="1607" Count="0" />
+      <LineId Id="1620" Count="0" />
+      <LineId Id="1629" Count="0" />
+      <LineId Id="1618" Count="0" />
+      <LineId Id="1611" Count="3" />
+      <LineId Id="1617" Count="0" />
+      <LineId Id="1628" Count="0" />
+      <LineId Id="1619" Count="0" />
+      <LineId Id="1599" Count="0" />
       <LineId Id="807" Count="0" />
+      <LineId Id="1582" Count="0" />
+      <LineId Id="1631" Count="0" />
       <LineId Id="809" Count="0" />
-      <LineId Id="1223" Count="0" />
+      <LineId Id="1606" Count="0" />
+      <LineId Id="1673" Count="0" />
+      <LineId Id="1600" Count="0" />
+      <LineId Id="1592" Count="0" />
       <LineId Id="861" Count="0" />
       <LineId Id="1239" Count="0" />
       <LineId Id="1398" Count="0" />
       <LineId Id="1224" Count="1" />
+      <LineId Id="1674" Count="0" />
       <LineId Id="811" Count="0" />
-      <LineId Id="859" Count="1" />
+      <LineId Id="859" Count="0" />
       <LineId Id="683" Count="0" />
+      <LineId Id="1677" Count="0" />
       <LineId Id="680" Count="0" />
+      <LineId Id="1678" Count="0" />
       <LineId Id="486" Count="0" />
       <LineId Id="489" Count="0" />
       <LineId Id="492" Count="0" />
@@ -447,6 +516,7 @@ fbBusAuslastung(
       <LineId Id="497" Count="0" />
       <LineId Id="495" Count="0" />
       <LineId Id="493" Count="0" />
+      <LineId Id="1679" Count="1" />
       <LineId Id="1073" Count="0" />
       <LineId Id="684" Count="0" />
       <LineId Id="1074" Count="0" />
@@ -468,8 +538,6 @@ fbBusAuslastung(
       <LineId Id="518" Count="0" />
       <LineId Id="927" Count="0" />
       <LineId Id="1234" Count="0" />
-      <LineId Id="687" Count="0" />
-      <LineId Id="1393" Count="0" />
       <LineId Id="1399" Count="0" />
       <LineId Id="1394" Count="1" />
       <LineId Id="1397" Count="0" />
@@ -479,7 +547,6 @@ fbBusAuslastung(
       <LineId Id="857" Count="0" />
       <LineId Id="1148" Count="0" />
       <LineId Id="705" Count="0" />
-      <LineId Id="787" Count="0" />
       <LineId Id="1238" Count="0" />
       <LineId Id="822" Count="0" />
       <LineId Id="509" Count="0" />
@@ -489,7 +556,6 @@ fbBusAuslastung(
       <LineId Id="708" Count="1" />
       <LineId Id="707" Count="0" />
       <LineId Id="1240" Count="2" />
-      <LineId Id="1484" Count="0" />
       <LineId Id="1483" Count="0" />
       <LineId Id="1243" Count="1" />
       <LineId Id="506" Count="0" />
@@ -504,7 +570,6 @@ fbBusAuslastung(
       <LineId Id="1083" Count="0" />
       <LineId Id="1149" Count="0" />
       <LineId Id="1084" Count="0" />
-      <LineId Id="1144" Count="1" />
       <LineId Id="1143" Count="0" />
       <LineId Id="1146" Count="0" />
       <LineId Id="1136" Count="0" />
@@ -516,8 +581,11 @@ fbBusAuslastung(
       <LineId Id="1085" Count="0" />
       <LineId Id="1087" Count="1" />
       <LineId Id="1133" Count="0" />
-      <LineId Id="1090" Count="25" />
-      <LineId Id="1117" Count="15" />
+      <LineId Id="1090" Count="11" />
+      <LineId Id="1104" Count="11" />
+      <LineId Id="1117" Count="4" />
+      <LineId Id="1584" Count="0" />
+      <LineId Id="1125" Count="7" />
       <LineId Id="1089" Count="0" />
       <LineId Id="530" Count="0" />
       <LineId Id="658" Count="0" />
@@ -538,7 +606,8 @@ fbBusAuslastung(
       <LineId Id="1480" Count="0" />
       <LineId Id="1407" Count="0" />
       <LineId Id="1479" Count="0" />
-      <LineId Id="1408" Count="70" />
+      <LineId Id="1408" Count="20" />
+      <LineId Id="1431" Count="47" />
       <LineId Id="688" Count="0" />
       <LineId Id="554" Count="0" />
       <LineId Id="690" Count="1" />
@@ -549,21 +618,33 @@ fbBusAuslastung(
       <LineId Id="703" Count="0" />
       <LineId Id="702" Count="0" />
       <LineId Id="505" Count="0" />
+      <LineId Id="1681" Count="1" />
       <LineId Id="499" Count="0" />
-      <LineId Id="630" Count="4" />
+      <LineId Id="630" Count="1" />
+      <LineId Id="1575" Count="1" />
+      <LineId Id="1581" Count="0" />
+      <LineId Id="1579" Count="1" />
+      <LineId Id="1578" Count="0" />
+      <LineId Id="1577" Count="0" />
+      <LineId Id="634" Count="0" />
       <LineId Id="794" Count="0" />
+      <LineId Id="1570" Count="1" />
       <LineId Id="806" Count="0" />
       <LineId Id="795" Count="0" />
-      <LineId Id="826" Count="1" />
+      <LineId Id="1573" Count="0" />
+      <LineId Id="826" Count="0" />
+      <LineId Id="1685" Count="0" />
+      <LineId Id="1564" Count="0" />
       <LineId Id="784" Count="0" />
       <LineId Id="783" Count="0" />
+      <LineId Id="1686" Count="0" />
       <LineId Id="921" Count="0" />
       <LineId Id="785" Count="0" />
       <LineId Id="922" Count="0" />
-      <LineId Id="925" Count="0" />
-      <LineId Id="924" Count="0" />
+      <LineId Id="1687" Count="0" />
       <LineId Id="1006" Count="0" />
       <LineId Id="994" Count="0" />
+      <LineId Id="1688" Count="0" />
       <LineId Id="993" Count="0" />
       <LineId Id="996" Count="2" />
       <LineId Id="1000" Count="1" />
@@ -571,13 +652,14 @@ fbBusAuslastung(
       <LineId Id="1002" Count="0" />
     </LineIds>
     <LineIds Name="fb_RS485FiFoMaster.ac00_Receive">
-      <LineId Id="25" Count="0" />
+      <LineId Id="25" Count="2" />
       <LineId Id="2" Count="0" />
       <LineId Id="4" Count="20" />
       <LineId Id="1" Count="0" />
     </LineIds>
     <LineIds Name="fb_RS485FiFoMaster.ac99_Diagnose">
-      <LineId Id="8" Count="0" />
+      <LineId Id="8" Count="1" />
+      <LineId Id="11" Count="0" />
       <LineId Id="2" Count="3" />
       <LineId Id="1" Count="0" />
       <LineId Id="6" Count="1" />
