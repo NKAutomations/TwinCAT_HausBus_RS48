@@ -62,6 +62,10 @@ Es ermöglicht eine **zyklische, kollisionssichere Kommunikation** mit diversen 
 
 ## 📝 Versionshistorie & Changelog
 
+### V1.07 (05.06.2025)
+- Kleine Anpassungen der Parameter des FiFo Masters, sorgt für noch zuverlässigere Collision Detection.
+- [Release-Link](https://github.com/NKAutomations/TwinCAT_HausBus_RS485/releases/tag/V1.07)
+
 ### V1.06 (03.06.2025)
 - **Neue Versionslogik:** Umstellung auf Major.Minor.Patch, ausführliche Changelogs ab dieser Version.
 - **Dokumentation & Visuals überarbeitet:** README und Visualisierung modernisiert, zusätzliche Diagnose- und Hilfetexte.
