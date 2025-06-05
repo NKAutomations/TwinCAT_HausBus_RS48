@@ -4,24 +4,25 @@
     <Declaration><![CDATA[{attribute 'Tc2GvlVarNames'}
 VAR_GLOBAL
 	
-	(* Ping *)
-	bUseTasterPing						:BOOL := TRUE;			(* Schaltet den Dauerping für die Taster ein *)	(* Wird noch nicht verwendet, da es nicht so zuverlässig Funktioniert *)
-	bUseRelaisPing						:BOOL := TRUE;			(* Schaltet den Dauerping für die Relais ein *)	(* Wird noch nicht verwendet, da es nicht so zuverlässig Funktioniert *)
-	bUseCYDPing							:BOOL := FALSE;	
-	bUseFiFoPing						:BOOL := TRUE; 
-	
-	cTimePingTimeCYD					:TIME := T#25S;			(* Ping Intervallzeit *)
-	cTimeReceiveTimeoutCYD				:TIME := T#200MS;		(* Ping Empfangs Timeout *)
-	
-	cTimePingTimeRelais					:TIME := T#15S;			(* Ping Intervallzeit *)
-	cTimeReceiveTimeoutRelais			:TIME := T#200MS;		(* Ping Empfangs Timeout *)
-	
-	cTimePingTimeTaster					:TIME := T#15S;			(* Ping Intervallzeit *)	(* Vorerst auf 5min gestellt, da die Taster Automatisch senden (Helligkeit/Luftfeuchtigkeit/Temp usw. *)
+	(* Ping Abfrage *)
+	bUseTasterPing						:BOOL := TRUE;			(* Schaltet die Ping empfangsüberprüfung ein um den Verbindungsstatus abzufragen*)
+	cTimePingTimeTaster					:TIME := T#40S;			(* Ping Intervallzeit *)	(* Vorerst auf 5min gestellt, da die Taster Automatisch senden (Helligkeit/Luftfeuchtigkeit/Temp usw. *)
 	cTimeReceiveTimeoutTaster			:TIME := T#200MS;		(* Ping Empfangs Timeout *)
 	
-	cPingSendTimeFiFo					:TIME := T#5S;			(* Intervall Zeit, wann ein Ping vom FiFo gesendet werden soll an alle Devices *)
+	bUseRelaisPing						:BOOL := TRUE;			(* Schaltet die Ping empfangsüberprüfung ein um den Verbindungsstatus abzufragen*)
+	cTimePingTimeRelais					:TIME := T#40S;			(* Ping Intervallzeit *)
+	cTimeReceiveTimeoutRelais			:TIME := T#200MS;		(* Ping Empfangs Timeout *)
 	
-	cMaxPingTry							:INT :=	5;				(* Anzahl der Pingversuche *)
+	bUseCYDPing							:BOOL := FALSE;			(* Schaltet die Ping empfangsüberprüfung ein um den Verbindungsstatus abzufragen*)
+	cTimePingTimeCYD					:TIME := T#40S;			(* Ping Intervallzeit *)
+	cTimeReceiveTimeoutCYD				:TIME := T#200MS;		(* Ping Empfangs Timeout *)
+	
+	(* FiFo Ping *)
+	bUseFiFoPing						:BOOL := TRUE; 			(* Schaltet das Automatische Pingen vom FiFo Master ein, alle Geräte werden von dort aus angepingt *)
+	cPingSendTimeFiFo					:TIME := T#19S;			(* Intervall Zeit, wann ein Ping vom FiFo gesendet werden soll an alle Devices *)
+	
+	(* Nicht verwendet *)
+	cMaxPingTry							:INT  := 5;				(* Anzahl der Pingversuche *)
 	
 END_VAR]]></Declaration>
   </GVL>

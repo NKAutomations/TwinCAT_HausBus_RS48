@@ -15,6 +15,7 @@ Date          	| Version    	| created under        	| Author          	| Remark
 (*02/06/2025   	| 2.00      		| TC3		  		| N.Kersting       | Neue Verbesserte Collision Detection, verhindert, dass Senden bei gefülltem Epmfangspuffer *)
 (*03/06/2025   	| 2.01      		| TC3		  		| N.Kersting       | Collision Detection nun aufgeeilt in Empfang und Senden *)
 (*03/06/2025   	| 2.02      		| TC3		  		| N.Kersting       | Neue Bus Scan Funktion Implementiert, Scannt alle Teilnehmer Ids im Bus (nur im Manuell Mode verfügbar) *)
+(*05/06/2025   	| 2.03      		| TC3		  		| N.Kersting       | Interne Parameter Optimiert *)
 (*====================================================================================================================================================*)
 FUNCTION_BLOCK fb_RS485FiFoMaster
 VAR_INPUT
@@ -54,11 +55,11 @@ VAR
 	
 	bUseRXCollisionDetection	:BOOL := TRUE;					(* Aktiviert die Empfangs Kollisions Überprüfung *)
 	bUseTXCollisionDetection	:BOOL := FALSE;					(* Aktiviert die Sende Kollisions Überprüfung *)
-	tVerzCollisionDetect		:TIME := T#100MS;				(* Zeit, die zum Empfangen bleibt *)
+	tVerzCollisionDetect		:TIME := T#5MS;					(* Überprüfungszeit, ob keine Kollision vorhanden ist *)
 (*==========================================================================================================*)	
-	bRXCollisionDetected		:BOOL;
-	bTXCollisionDetected		:BOOL;
-	bCollisionFree				:BOOL;	
+	bRXCollisionDetected		:BOOL;							(* RX Kollision gefunden *)
+	bTXCollisionDetected		:BOOL;							(* TX Kollision gefunden *)
+	bCollisionFree				:BOOL;							(* keine Kollision gefunden *)
 (*==========================================================================================================*)		
 	bFirstCycle					:BOOL := TRUE;
 	bStringSend					:BOOL := FALSE;
@@ -138,6 +139,9 @@ tonPingIntervall(
 (*============================================================================================*)	
 (* Busbelastungstest *)	
 bBusBelastungstest := I_bBusBelastungstest;
+
+(*============================================================================================*)	
+(* Empfangsstring zurücksetzen *)	
 sReceivedMEMString:='';
 
 (*============================================================================================*)	
@@ -329,7 +333,6 @@ CASE iStepFiFo OF
 		THEN
 			iStepFiFo := 0;
 		END_IF
-		
 	END_IF
 	
 (*============================================================================================*)	
@@ -428,7 +431,6 @@ THEN
 			SendString:= 	sString,
 			TXbuffer:= 		I_pTxBuffer^);
 	END_IF
-	
 ELSE
 	IF bActivateReceive
 	THEN
@@ -438,7 +440,7 @@ ELSE
 END_IF
 
 (*============================================================================================*)	
-(* Empfangsmerker 0 Setzen am ende Eines Zyklus *)
+(* Empfangsstring schreiben - Wird am Anfang des Zyklusses 0 gesetzt! *)
 Q_sReceiveString := sReceivedMEMString;
 
 (*============================================================================================*)	
@@ -548,6 +550,8 @@ fbRS485Search(
       <LineId Id="1674" Count="0" />
       <LineId Id="811" Count="0" />
       <LineId Id="859" Count="0" />
+      <LineId Id="1918" Count="1" />
+      <LineId Id="1917" Count="0" />
       <LineId Id="683" Count="0" />
       <LineId Id="1677" Count="0" />
       <LineId Id="680" Count="0" />
@@ -664,7 +668,6 @@ fbRS485Search(
       <LineId Id="1714" Count="0" />
       <LineId Id="1717" Count="0" />
       <LineId Id="1715" Count="0" />
-      <LineId Id="674" Count="0" />
       <LineId Id="553" Count="0" />
       <LineId Id="1480" Count="0" />
       <LineId Id="1407" Count="0" />
@@ -689,7 +692,6 @@ fbRS485Search(
       <LineId Id="1579" Count="1" />
       <LineId Id="1578" Count="0" />
       <LineId Id="1577" Count="0" />
-      <LineId Id="634" Count="0" />
       <LineId Id="794" Count="0" />
       <LineId Id="1570" Count="1" />
       <LineId Id="806" Count="0" />

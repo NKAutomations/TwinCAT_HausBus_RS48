@@ -15,7 +15,7 @@ VAR_INPUT
 	I_diMaxID			:DINT	:= 6000;
 	I_sStartZeichen		:BYTE := 16#FD;										(* Startzeichen Präfix *)
 	I_sEndZeichen		:BYTE := 16#FE;										(* Endzeichen Suffix *)
-	I_tWait				:TIME := T#300MS;
+	I_tWait				:TIME := T#60MS;
 	I_StringReceived	:STRING(255);
 END_VAR
 VAR_OUTPUT
